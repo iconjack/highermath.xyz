@@ -2,6 +2,7 @@
 <html>
 <head>
 <title>Ken's Tetrahedron Circuit Puzzle</title>
+<link rel=icon href=tetra.ico>
 <style>
     * {
         margin: 0;
@@ -13,23 +14,14 @@
 </style>
 </head>
 <body>
-<canvas id='canvas' width=1000 height=1000></canvas>
+<canvas id='canvas' width=500 height=500></canvas>
+<p style="margin-left: 36px; margin-top: -50px; font-family: sans-serif; font-size: 18px">
+  Press&nbsp;&nbsp;A, B, C, D&nbsp;&nbsp;or&nbsp;&nbsp;&lt;space&gt;&nbsp;&nbsp;to Randomize
+</p> 
 <script>
 
 let canvas = document.getElementById('canvas');
 let ctx = canvas.getContext('2d');
-
-let straws = [0,1,1,1,0,0];
-let leds = Array(4);
-
-let buttons = [
-    {label:'A', key:'A', straws:[[0,1,2]]},
-    {label:'B', key:'B', straws:[[0,1,2]]},
-    {label:'C', key:'C', straws:[[0,1,2]]},
-    {label:'D', key:'D', straws:[[0,1,2]]},
-]
-
-let pairs = [[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]];
 
 function dot(x,y) {
     ctx.save();
@@ -43,12 +35,7 @@ function dot(x,y) {
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 0.3;
     ctx.stroke();
-
     ctx.restore();
-}
-
-function dirty() {
-    // requestAnimationFrame(draw);
 }
 
 class LED {
@@ -68,7 +55,6 @@ class LED {
 
 
     draw() {
-        console.log(this.state);
         ctx.save();
         ctx.beginPath();
 
@@ -89,7 +75,7 @@ class LED {
 
 class LEDPair {
     constructor() {
-        this.leds = [new LED('red', 8), new LED('green', 8)];
+        this.leds = [new LED('green', 8), new LED('red', 8)];
         this.value(Math.floor(Math.random()*4));
     }
 
@@ -131,11 +117,10 @@ class Button {
 }
 
 class Site {
-    constructor(key, neighbors) {
+    constructor(key, idx) {
         this.label = label;
         this.key = key;
-        this.neighbors = neighbors;
-        // this.led0 = new LED('green', 12);
+        this.idx = idx;
         this.pair = new LEDPair();
         this.button = new Button();
 
@@ -143,6 +128,22 @@ class Site {
 
     hit() {
         console.log(this.label);
+        for (let straw of this.straws) {
+            console.log(straw);
+            let s = straw[0] + straw[1];
+            if (straw[0]*straw[1] == 0) s -= 1;
+            console.log(s);
+        }
+    }
+
+    update() {
+        let v = 0;
+        for (let straw of straws) {
+            if (straw[1] == this.idx) {
+                v += 1;
+            }
+        }
+        this.pair.value(v);
     }
 
     draw() {
@@ -160,21 +161,29 @@ function label(c, dx, dy) {
 
 class Tetra {
     constructor() {
-        this.sites = [new Site('A', []),
-                      new Site('B', []),
-                      new Site('C', []),
-                      new Site('D', [])];
+        this.sites = [new Site('A', 0),
+                      new Site('B', 1),
+                      new Site('C', 2),
+                      new Site('D', 3)];
         this.locations = [[200, 100], [100,200], [300,200], [200,300]];
     }
 
+    update() {
+        for (let site of this.sites) {
+            site.update();
+        }
+    }
+
     draw() {
+        ctx.clearRect(0, 0, 500, 500);        
+
         let labels = ['A', 'B', 'C', 'D'];
         let labelx = [10, -26, +42, 10];
         let labely = [-10, +22, 24, +82];
         for (let i = 0; i < this.sites.length; i++) {
             ctx.save();
             ctx.translate(this.locations[i][0], this.locations[i][1]);
-            ctx.font = '28px serif';
+            ctx.font = '28px Arial';
             label(labels[i], labelx[i], labely[i]);
 
             this.sites[i].draw()
@@ -183,31 +192,43 @@ class Tetra {
     }
 }
 
+let straws = [[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]];
+function randomize() {
+    for (let i = 0; i < 6; i++) {
+        if (Math.random() < .5) {
+            let t = straws[i][0];
+            straws[i][0] = straws[i][1];
+            straws[i][1] = t;
+        }
+    }
+    tetra.update();
+    tetra.draw();
+}
+
 this.addEventListener("keydown", event => {
     let key = event.key.toUpperCase();
-    switch (key) {
-        case 'A':
-            tetra.sites[0].hit();
-            dirty();
-            break;
-        case 'B':
-            tetra.sites[1].hit();
-            dirty();
-            break;
-        case 'C':
-            tetra.sites[2].hit();
-            dirty();
-            break;
-        case 'D':
-            tetra.sites[3].hit();
-            dirty();
-            break;
-        default:
-            console.log('errant key:  ' + event.key);
-    } 
+    if (key == ' ') {
+        randomize();
+    }
+    let site = -1;
+    if (key == 'A') site = 0;
+    if (key == 'B') site = 1;
+    if (key == 'C') site = 2;
+    if (key == 'D') site = 3;
+    if (site != -1) {
+        for (let i = 0; i < 6; i++) {
+            if (site == straws[i][1]) {
+                straws[i][1] = straws[i][0];
+                straws[i][0] = site;
+            }
+        }
+    tetra.update();
+    tetra.draw();
+    }
 });
 
 let tetra = new Tetra();
+randomize();
 tetra.draw();
 
 </script>
