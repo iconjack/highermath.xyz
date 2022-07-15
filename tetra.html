@@ -31,43 +31,31 @@ let buttons = [
 
 let pairs = [[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]];
 
-this.addEventListener("keydown", event => {
-    let key = event.key.toUpperCase();
-    switch (key) {
-        case 'A':
-            console.log('A');
-            dirty();
-            break;
-        case 'B':
-            console.log('B');
-            break;
-        default:
-            console.log('errant key:  ' + event.key);
-    } 
-});
+function dot(x,y) {
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.beginPath();
 
-function dirty() {
-    requestAnimationFrame(draw);
+    ctx.fillStyle = 'black';
+    ctx.shadowColor = 'black';
+    ctx.ellipse(0, 0, 10, 10, Math.PI/4, 0, 2*Math.PI);
+    ctx.fill();
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 0.3;
+    ctx.stroke();
+
+    ctx.restore();
 }
 
-// function draw() {
-//     console.log("frame");
-//     with (ctx) {
-//         beginPath();
-//         fillStyle = '#D02098';
-//         ellipse(500, 500, 200, 200, Math.PI/4, 0, 2*Math.PI);
-//         fill();
-//         stroke();
-//     }
-// }
-
-// dirty();
+function dirty() {
+    // requestAnimationFrame(draw);
+}
 
 class LED {
     constructor(color, size) {
         this.color = color;
         this.size = size;
-        this.off();
+        this.state = 0;
     }
 
     on() {
@@ -80,14 +68,51 @@ class LED {
 
 
     draw() {
+        console.log(this.state);
         ctx.save();
         ctx.beginPath();
+
         ctx.fillStyle = this.color;
         ctx.shadowColor = this.color;
         ctx.shadowBlur = 10;
         ctx.ellipse(0, 0, this.size, this.size, Math.PI/4, 0, 2*Math.PI);
-        ctx.fill();
-        // ctx.stroke();       
+        if (this.state == 1) {  
+            ctx.fill();
+        }
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 0.3;
+        ctx.stroke();
+
+        ctx.restore();
+    }
+}
+
+class LEDPair {
+    constructor() {
+        this.leds = [new LED('red', 8), new LED('green', 8)];
+        this.value(Math.floor(Math.random()*4));
+    }
+
+    value(n) {
+        if (n & 1 == 1) {
+            this.leds[0].on();
+        } else {
+            this.leds[0].off();
+        }
+        
+        if ((n >> 1) & 1 == 1) {
+            this.leds[1].on();
+        } else {
+            this.leds[1].off();
+        }
+    }
+
+    draw() {
+        ctx.save();
+        ctx.translate(15, 20);
+        this.leds[1].draw();
+        ctx.translate(15, 20);
+        this.leds[0].draw();
         ctx.restore();
     }
 }
@@ -106,33 +131,84 @@ class Button {
 }
 
 class Site {
-    constructor(neighbors) {
-        // this.x = x;
-        // this.y = y;
+    constructor(key, neighbors) {
+        this.label = label;
+        this.key = key;
         this.neighbors = neighbors;
-        this.led1 = new LED('#FF0000', 12);
-        this.led0 = new LED('green', 12);
+        // this.led0 = new LED('green', 12);
+        this.pair = new LEDPair();
         this.button = new Button();
+
+    }
+
+    hit() {
+        console.log(this.label);
     }
 
     draw() {
         ctx.save();
-        ctx.translate(15, 20);
-        this.led1.draw();
-        ctx.translate(15, 20);
-        this.led0.draw();
+        this.pair.draw();
         ctx.restore();
     }
 }
 
-let site = new Site(100, 100, []);
-site.led0.off();
 
-ctx.save();
-ctx.translate(100, 100);
-site.draw();
-ctx.restore();
+function label(c, dx, dy) {
+    ctx.fillText(c, dx, dy);
+}
 
+
+class Tetra {
+    constructor() {
+        this.sites = [new Site('A', []),
+                      new Site('B', []),
+                      new Site('C', []),
+                      new Site('D', [])];
+        this.locations = [[200, 100], [100,200], [300,200], [200,300]];
+    }
+
+    draw() {
+        let labels = ['A', 'B', 'C', 'D'];
+        let labelx = [10, -26, +42, 10];
+        let labely = [-10, +22, 24, +82];
+        for (let i = 0; i < this.sites.length; i++) {
+            ctx.save();
+            ctx.translate(this.locations[i][0], this.locations[i][1]);
+            ctx.font = '28px serif';
+            label(labels[i], labelx[i], labely[i]);
+
+            this.sites[i].draw()
+            ctx.restore();
+        }
+    }
+}
+
+this.addEventListener("keydown", event => {
+    let key = event.key.toUpperCase();
+    switch (key) {
+        case 'A':
+            tetra.sites[0].hit();
+            dirty();
+            break;
+        case 'B':
+            tetra.sites[1].hit();
+            dirty();
+            break;
+        case 'C':
+            tetra.sites[2].hit();
+            dirty();
+            break;
+        case 'D':
+            tetra.sites[3].hit();
+            dirty();
+            break;
+        default:
+            console.log('errant key:  ' + event.key);
+    } 
+});
+
+let tetra = new Tetra();
+tetra.draw();
 
 </script>
     
