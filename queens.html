@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script>
+
+var ctx;
+
+function main() {
+    canvas = document.getElementById('canvas');
+    ctx = canvas.getContext('2d')
+    ℂ = ctx;
+    canvas.addEventListener('wheel', wheel, {passive: false});
+
+}
+
+onload = main;
+
+function wheel(event) {
+    console.log(event);
+}
+
+function X2(n) {
+    var hex = n.toString(16);
+    if (hex.length < 2)
+        hex = '0' + hex;
+    return hex;
+}
+
+function rgb_to_color(rgb) {
+    let r = (rgb >> 16) & 0xFF;
+    let g = (rgb >>  8) & 0xFF;
+    let b = (rgb >>  0) & 0xFF;
+    let color = '#' + X2(r) + X2(g) + X2(b);
+    return color;
+}
+
+function draw_square() {
+    ℂ.lineTo();
+    
+}
+
+function stroke2(width) {
+    let matrix = ℂ.getTransform();
+    ℂ.setTransform(1, 0, 0, 1, 0, 0);
+    ℂ.lineWidth = width;
+    ℂ.stroke();
+    ℂ.setTransform(matrix);
+}
+function draw() {
+    ℂ.save();
+    ℂ.translate(300,300);
+    ℂ.rotate(r);
+    ℂ.strokeStyle = rgb_to_color(rgb);
+    ℂ.lineWidth = 1.0;
+
+    ℂ.fillStyle = '#D02098';
+    ℂ.scale(13.0, 13.0);
+
+    ℂ.beginPath();
+    ℂ.moveTo(0,0);
+    ℂ.lineTo(100,0);
+    ℂ.lineTo(100,100);
+    ℂ.lineTo(0,100);
+    ℂ.closePath();
+
+    ℂ.moveTo(100,0);
+    ℂ.lineTo(200,0);
+    ℂ.lineTo(200,100);
+    ℂ.lineTo(100,100);
+    ℂ.closePath();
+    // ℂ.stroke();
+    stroke2(3.0);
+    ℂ.restore();
+
+
+    requestAnimationFrame(draw);
+}
+
+r = 3.14;
+rgb = 31332200;
+requestAnimationFrame(draw);
+
+</script>
+</head>
+<body>
+    <canvas id='canvas' width=1000 height=1000></canvas>
+</body>
+
+</html>
