@@ -1,15 +1,56 @@
 <!DOCTYPE html>
 <html>
 <head>
+<style>
+    canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+    #canvas2 {
+        z-index: 100;
+    }
+</style>
 <script>
 
-var ctx;
+
+//  rect obj = {top: left: width: height:}
+//  Grid of SQUARES
+//  The grid itself can be rectangular but the cells are squares.
+
+class Grid {
+    constructor(orig, side, rows, cols, interior) {
+        this.orig = orig;
+        this.side = side;
+        this.rows = rows;
+        this.cols = cols;
+        if (interior)
+            this.interior = interior;
+        else
+            this.interior = draw_square;
+    }
+
+    draw() {
+        ctx.save();
+        ctx.translate(this.orig.x, this.orig.y);
+        // ctx.scale(WIDTH*0.8, HEIGHT*0.8);
+        draw_board(this.side, this.rows, this.cols, this.interior);
+
+        ctx.restore();
+
+    }
+}
+
+var ctx, ctx2;
+var WIDTH = 800;
+var HEIGHT = 800;
 
 function main() {
     canvas = document.getElementById('canvas');
     ctx = canvas.getContext('2d')
-    ℂ = ctx;
-    canvas.addEventListener('wheel', wheel, {passive: false});
+    ctx2 = document.getElementById('canvas2').getContext('2d');
+    // canvas.addEventListener('wheel', wheel, {passive: false});
+    requestAnimationFrame(draw);
 
 }
 
@@ -34,56 +75,133 @@ function rgb_to_color(rgb) {
     return color;
 }
 
-function draw_square() {
-    ℂ.lineTo();
-    
+function draw_board(side, m, n, f) {
+    for (let i = 0; i < m; i++) {
+        for (let j = 0; j < n; j++) {
+            // draw_square(i*side, j*side, side);
+            f(i*side, j*side, side);
+        }
+    }
+}
+
+function draw_square(x, y, side) {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + side, y);
+    ctx.lineTo(x + side, y + side);
+    ctx.lineTo(x, y + side);
+    ctx.closePath();
+    // ctx.stroke();
+    stroke2();
+}
+
+function draw_dot(x, y, side, color='black') {
+    let radius = side * .08
+    let center_x = x + side / 2;
+    let center_y = y + side / 2;
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(center_x, center_y, radius, radius, 0, 0, 2*Math.PI, false);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.restore();
+}
+
+/*
+M477.518 181.966 a25 25 0 0 1-34.91 23l-62.29 150.26h-248.92l-62.24-150.19a25 25 0 1 1 9.73-7.29l87 71.2 20.92-126.4a25 25 0 1 1 14.7-1.85l54.31 117 54.42-117.3a25 25 0 1 1 14.58 2.08l20.93 126.42 87.26-71.3a25 25 0 1 1 44.51-15.63zm-71.66 241.25h-300v60h300v-60zm-27.75-52h-244.22v36h244.22v-36z
+*/
+function draw_queen(color) {
+    console.log(ctx);
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.beginPath();
+ctx.moveTo(477.518,181.966);
+ctx.translate(452.5180462190139,182.0140723263381);
+ctx.rotate(0);
+ctx.arc(0,0,25,-0.0019228942384780488,1.9783906155379334,0);
+ctx.rotate(0);
+ctx.translate(-452.5180462190139,-182.0140723263381);
+ctx.lineTo(380.3179999999999,355.226);
+ctx.lineTo(131.39799999999994,355.226);
+ctx.lineTo(69.15799999999993,205.036);
+ctx.translate(59.48278279529752,181.9840982987991);
+ctx.rotate(0);
+ctx.arc(0,0,25,1.1734110566457623,0.6821663837188571,0);
+ctx.rotate(0);
+ctx.translate(-59.48278279529752,-181.9840982987991);
+ctx.lineTo(165.88799999999992,268.946);
+ctx.lineTo(186.80799999999994,142.54600000000002);
+ctx.translate(191.1765608305077,117.93064551808868);
+ctx.rotate(0);
+ctx.arc(0,0,25,1.7464404973022392,1.1447678268568497,0);
+ctx.rotate(0);
+ctx.translate(-191.1765608305077,-117.93064551808868);
+ctx.lineTo(255.81799999999993,257.696);
+ctx.lineTo(310.23799999999994,140.39600000000002);
+ctx.translate(320.90213893121853,117.78458383790026);
+ctx.rotate(0);
+ctx.arc(0,0,25,2.0114884440645278,1.4135142204091453,0);
+ctx.rotate(0);
+ctx.translate(-320.90213893121853,-117.78458383790026);
+ctx.lineTo(345.74799999999993,268.896);
+ctx.lineTo(433.0079999999999,197.596);
+ctx.translate(452.5180000812144,181.96398487619044);
+ctx.rotate(0);
+ctx.arc(0,0,25,2.4661016068797577,0.00008060495247041999,0);
+ctx.rotate(0);
+ctx.translate(-452.5180000812144,-181.96398487619044);
+ctx.closePath();
+ctx.moveTo(405.85799999999995,423.216);
+ctx.lineTo(105.85799999999995,423.216);
+ctx.lineTo(105.85799999999995,483.216);
+ctx.lineTo(405.85799999999995,483.216);
+ctx.lineTo(405.85799999999995,423.216);
+ctx.closePath();
+ctx.moveTo(378.10799999999995,371.216);
+ctx.lineTo(133.88799999999995,371.216);
+ctx.lineTo(133.88799999999995,407.216);
+ctx.lineTo(378.10799999999995,407.216);
+ctx.lineTo(378.10799999999995,371.216);
+ctx.closePath();
+ctx.fill();
+ctx.stroke();
+ctx.restore();
 }
 
 function stroke2(width) {
-    let matrix = ℂ.getTransform();
-    ℂ.setTransform(1, 0, 0, 1, 0, 0);
-    ℂ.lineWidth = width;
-    ℂ.stroke();
-    ℂ.setTransform(matrix);
+    let matrix = ctx.getTransform();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.lineWidth = width;
+    ctx.stroke();
+    ctx.setTransform(matrix);
 }
+
+let grid = new Grid({x:50, y:50}, 80, 8, 8, draw_square);
+let dock1 = new Grid({x:50, y:770}, 80, 8, 1, draw_dot);
+let dock2 = new Grid({x:770, y:50}, 80, 1, 8, (x,y,side) => draw_dot(x,y,side,color='green'));
+
+let dirty = true;
 function draw() {
-    ℂ.save();
-    ℂ.translate(300,300);
-    ℂ.rotate(r);
-    ℂ.strokeStyle = rgb_to_color(rgb);
-    ℂ.lineWidth = 1.0;
-
-    ℂ.fillStyle = '#D02098';
-    ℂ.scale(13.0, 13.0);
-
-    ℂ.beginPath();
-    ℂ.moveTo(0,0);
-    ℂ.lineTo(100,0);
-    ℂ.lineTo(100,100);
-    ℂ.lineTo(0,100);
-    ℂ.closePath();
-
-    ℂ.moveTo(100,0);
-    ℂ.lineTo(200,0);
-    ℂ.lineTo(200,100);
-    ℂ.lineTo(100,100);
-    ℂ.closePath();
-    // ℂ.stroke();
-    stroke2(3.0);
-    ℂ.restore();
-
-
+    if (!dirty) return;
+    grid.draw();
+    dock1.draw();
+    dock2.draw();
+    let old = ctx;
+    ctx = ctx2;
+    draw_queen('red');
+    ctx = old;
+    dirty = false;
     requestAnimationFrame(draw);
 }
 
-r = 3.14;
-rgb = 31332200;
-requestAnimationFrame(draw);
 
 </script>
 </head>
 <body>
     <canvas id='canvas' width=1000 height=1000></canvas>
+    <canvas id='canvas2' width=1000 height=1000></canvas>
+
+
 </body>
 
 </html>
