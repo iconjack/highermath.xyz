@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box; 
+        }
+
+        body {
+            background-color: rgb(209, 236, 89);
+            width: 100%;
+            height: 100%;
+        }
+
+        canvas {
+            margin-left: auto;
+            margin-right: auto;
+            display: block;
+        }
+    </style>
+
+    <script>
+        function $(id) {
+            return document.getElementById(id);
+        }
+
+        //    GLOBALS
+        var ctx, changed;
+        var w, h;
+ 
+        onload = function () {
+            let canvas = $('canvas');
+            // canvas.width = w;
+            // canvas.height = h;
+            ctx = canvas.getContext('2d');
+            changed = true;
+            requestAnimationFrame(draw);
+
+            document.addEventListener('keydown', function (kbdevt) {
+                let delta = 0.2;
+                if (kbdevt.keyCode == 65) {
+                    dashoffset -= delta;
+                    changed = true;
+                }
+                if (kbdevt.keyCode == 66) {
+                    dashoffset += delta;
+                    changed = true;
+                }
+                return false;
+            });
+
+            window.onfocus = function () {
+                t0 = null;
+            }
+
+            window.onblur = function () {
+            }
+
+            window.addEventListener('resize', function (evt) {
+                if (window.innerWidth !== w) {
+                    w = h = Math.min(window.innerWidth, window.innerHeight) - 2;
+                    ctx.canvas.width = w
+                    ctx.canvas.height = h;
+                    changed = true;
+                    return true;
+                }
+            });
+
+            window.dispatchEvent(new Event('resize'));
+
+        }
+
+
+        //  Draw barchart inside rectangle rect inside context ctx
+
+        function barChart(ctx, rect, data) {
+            // n_bars = data.length;
+            // n_pads = n_bars + 1;
+            let labels = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+            ctx.fillStyle = 'rgb(30,130,100)';
+            ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+
+            ctx.font = '24px serif';
+            ctx.fillStyle = 'black';
+            var width = ctx.measureText('⚂').width;
+            ctx.fillText('⚂', rect.x + (rect.width - width)/2, rect.y + rect.height + 24);
+            // console.log(tm);
+
+        }
+
+        function draw(t) {
+
+            changed = true;
+
+            if (changed) {
+                // draw a circle
+
+                // ctx.scale(w,h);
+                ctx.save();
+
+                ctx.fillStyle = 'rgb(100, 220, 100)';
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                // ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                let rect = { x: 10, y: 10, width: 32, height: 100 };
+                barChart(ctx, rect, null);
+
+                ctx.translate(w/2, h/2);
+
+                ctx.beginPath();
+                ctx.moveTo(-w, 0);
+                ctx.lineTo(w, 0);
+                ctx.lineWidth = 1.0;
+                ctx.strokeStyle = 'black';
+                ctx.stroke();
+
+                // ctx.lineWidth = 2.0;
+                // ctx.setLineDash([8, 9]);
+                // ctx.lineDashOffset = dashoffset;
+                // ctx.strokeStyle = 'black';
+                // ctx.beginPath();
+                // ctx.arc(0, 0, .35 * w, 0, 360);
+                // ctx.stroke();
+
+                // ctx.fillStyle = 'black';
+                // ctx.beginPath();
+                // ctx.ellipse(.35 * w, 0, .005 * w, .005 * h, Math.PI / 4, 0, 2 * Math.PI);
+                // ctx.fill();
+
+
+
+                // ctx.font = '24px serif';
+                // ctx.fillStyle = 'black';
+                // ctx.fillText('1', .35 * w + .01 * w, -.015 * w);
+
+                // ctx.beginPath();
+                // ctx.ellipse(0, 0, .005 * w, .005 * h, Math.PI / 4, 0, 2 * Math.PI);
+                // ctx.fill();
+                // ctx.fillText('0', -.005 * w, -.015 * w);
+
+                // ctx.beginPath();
+                // ctx.ellipse(-.35 * w, 0, .005 * w, .005 * h, Math.PI / 4, 0, 2 * Math.PI);
+                // ctx.fill();
+                // ctx.fillText('\u22121', -.383 * w, -.015 * w);
+
+                // ctx.font = 'italic 24px serif';
+
+                // ctx.beginPath();
+                // ctx.ellipse(0, .35 * w, .005 * w, .005 * h, Math.PI / 4, 0, 2 * Math.PI);
+                // ctx.fill();
+                // ctx.fillText('i', -.005 * w, -.368 * w);
+
+                // ctx.beginPath();
+                // ctx.ellipse(0, -.35 * w, .005 * w, .005 * h, Math.PI / 4, 0, 2 * Math.PI);
+                // ctx.fill();
+                // ctx.fillText('\u2212i', -.015 * w, .383 * w);
+
+                // // draw source point
+                // ctx.beginPath();
+                // ctx.setLineDash([]);
+                // ctx.fillStyle = 'red';
+                // ctx.ellipse(sourcePoint.x * .35 * w, -sourcePoint.y * .35 * h, .012 * w, .012 * h, Math.PI / 4, 0, 2 * Math.PI);
+                // ctx.fill();
+
+                // ctx.font = 'italic 40px serif';
+                // ctx.fillStyle = 'black'
+                // ctx.fillText('z', sourcePoint.x * .35 * w + .02 * w, -sourcePoint.y * .35 * h - 0.02 * h);
+
+                // // draw dest point
+                // let z = sourcePoint;
+                // let logz = Log(z);
+                // let ez = Exp(z);
+                // let zz = Pow(z, z);
+                // ctx.beginPath();
+                // ctx.setLineDash([]);
+                // ctx.fillStyle = 'blue';
+                // ctx.ellipse(zz.x * .35 * w, -zz.y * .35 * h, .012 * w, .012 * h, Math.PI / 4, 0, 2 * Math.PI);
+                // ctx.fill();
+
+                // ctx.fillStyle = 'black';
+                // ctx.fillText('z', zz.x * .35 * w + .02 * w, -zz.y * .35 * h - 0.02 * h);
+                // ctx.font = 'italic 28px serif';
+                // ctx.fillText('z', zz.x * .35 * w + .04 * w, -zz.y * .35 * h - 0.04 * h);
+
+                ctx.restore();
+                changed = false;
+            }
+            requestAnimationFrame(draw);
+        }
+
+    </script>
+
+</head>
+
+<body>
+    <canvas id='canvas'></canvas>
+</body>
+
+</html>

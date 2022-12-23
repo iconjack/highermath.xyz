@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<style>
+    body {
+        border: 0;
+        touch-action: none;
+        /* background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAYAAACOEfKtAAAACXBIWXMAAA6ZAAAOmQEqLjYrAAAAGXRFWHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAANZJREFUeJzt20ENgEAQBEEgaEUHOhCIjcMBn3ocJF0KJp397jrucywftl6zF7zbZg/4uwKiAqICogKiAqICogKiAqICogKiAqICogKiAqICogKiAqICogKiAqICogKiAqICogKiAqICogKiAqICogKiAqICogKiAqICogKiAqL9638Y45i94F0XiAqICogKiAqICogKiAqICogKiAqICogKiAqICogKiAqICogKiAqICogKiAqICogKiAqICogKiAqICogKiAqICogKiAqICogKiAqICogeIAAGodOHMRAAAAAASUVORK5CYII=); */
+        background-image: url("check.png");
+        background-repeat: repeat;
+        font-size: 36px;
+    }
+
+    piece {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+    }
+</style>
+
+<script>
+    
+function $(id) {
+    let elm = document.getElementById(id);
+    return elm;
+}
+
+function set_position(elm, x, y) {
+    // element is assumed to be position: absolute
+    elm.style.left = x + "px";
+    elm.style.top  = y + "px";
+    // also consider using translation:
+    //  elm.style.transform = "translate3d(" + x + "px, " + y + "px, 0)";
+}
+
+let bishops = [{x:2, y:3}, {x:0, y:0}, {x:3, y:5}, {x:-3, y:11}, {x:10, y:0}];
+let king = {x: -5, y:-7};
+
+function board_to_html(bishop) {
+    let x_center = Math.round((window.innerWidth/2)/20)*20;
+    let y_center = Math.round((window.innerHeight/2)/20)*20;
+    return {x: x_center + 40*bishop.x + 3, y: y_center + 40*bishop.y + 2};
+}
+
+function update_bishops() {
+    console.log('bishops.Length = ' + bishops.length);
+    for(let i = 0; i < bishops.length; i++) {
+        let xy = board_to_html(bishops[i]);
+        let elm = $("bishop" + i);
+        console.log(elm);
+        elm.style.left = xy.x + 'px';   // don't forget the px!  not kidding
+        elm.style.top = xy.y + 'px';
+        console.log(xy.x, xy.y);
+    }
+}
+
+function update_king() {
+    let xy = board_to_html(king);
+    let elm = $('king');
+    elm.style.left = xy.x + 'px';
+    elm.style.top = xy.y + 'px';
+}
+
+var xOffset = 0;  
+var yOffset = 0;
+function pointerdown(e) {
+    console.log("pointerdown", e);
+    // apparently, a mousedown listener will also catch touches (makes sense)
+    // but the coordinates of the touch are buried in an array, I guess because
+    // multiple fingertips can touch at once
+    if (event.type == 'touchstart') {
+        x0 = e.touches[0].clientX - xOffset;
+        y0 = e.touches[0].clientY - yOffset;
+    } else {
+        x0 = e.clientX - xOffset;
+        y0 = e.clientY - xOffset;
+    }
+
+    e.preventDefault();
+
+    this.addEventListener("pointerup", pointerup);
+
+    this.addEventListener("pointermove", pointermove);
+    this.setPointerCapture(e.pointerId);
+    console.log(e.pointerId);
+}
+
+function pointermove(e) {
+    console.log("pointermove", e.clientX, e.clientY);
+    set_position(this, e.clientX, e.clientY);
+}
+
+function pointerup(event) {
+    console.log("pointerup");
+    console.log(this.hasPointerCapture(1));
+
+    this.releasePointerCapture(event.pointerId);
+    console.log(this.hasPointerCapture(1));
+    this.removeEventListener("pointermove", pointermove, false);
+    this.removeEventListener("pointermove", pointermove, true);
+    this.removeEventListener("pointerup", pointerup);
+}
+
+function pointercancel(event) {
+    this.releasePointerCapture(event.pointerId);
+}
+
+// make an element draggable 
+function draggable(id) {
+    let elm = $(id);
+
+    // elm.addEventListener("mousedown", mousedown);
+    elm.addEventListener("pointerdown", pointerdown);
+    // elm.addEventListener("pointerup", pointerup);
+
+    elm.addEventListener("pointercancel", pointercancel);
+    // on mouse down  (the mousedown handler will add mousemove)
+    // on mouse up  (the mouseup handler will remove mousemove)
+}
+
+onload = function main() {
+    console.log('main');
+    update_bishops();
+    update_king();
+    draggable("king");
+
+}
+</script>
+</head>
+<body>
+    <piece id='bishop0'><img src='bishop.png'></piece>
+    <piece id='bishop1'><img src='bishop.png'></piece>
+    <piece id='bishop2'><img src='bishop.png'></piece>
+    <piece id='bishop3'><img src='bishop.png'></piece>
+    <piece id='bishop4'><img src='bishop.png'></piece>
+    <piece id='king'><img src='king.png'></piece>
+</body>

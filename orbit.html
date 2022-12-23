@@ -1,0 +1,74 @@
+
+<html>
+<head>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+</style>
+
+<script>
+    onload = function main() {
+        const p1 = new Planet(2,3,5);
+        const p2 = new Planet(-1,-1);
+        console.log(Planet.all);
+        onresize();
+    }
+
+    onresize = function() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+
+    requestAnimationFrame(function draw() {
+        
+        console.log("frame");
+        const context = canvas.getContext('2d');
+        context.fillStyle = "black";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        requestAnimationFrame(draw);
+    });
+
+    class Planet {
+        constructor(m, x, y, vx=0.0, vy=0.0) {
+            this.m = m;
+            this.x = x;     this.y = y;
+            this.vx = vx;   this.vy = vy;
+            Planet.all.push(this); 
+        }
+
+        static all = [];
+
+        // step by time t
+        step(t) {
+            let force = 0.0;
+            for (let planet of Planet.all) {
+                if (planet !== this) {
+                    let dx = planet.x - this.x;
+                    let dy = planet.y - this.y;
+                    const r = this.distance(planet);
+                    force += (Planet.G * planet.m * this.m) / (r*r);
+                }
+            }
+            const ax = 
+        }
+
+        distance(planet) {
+            return Math.hypot(this.x - planet.x, this.y - planet.y);
+        }
+
+    }
+
+
+</script>
+
+</head>
+<body>
+    <canvas id="canvas">
+    </canvas>
+</body>
+</html>

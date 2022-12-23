@@ -1,0 +1,312 @@
+<html>
+<head>
+<meta charset="UTF-8">	
+<!-- Without the following meta line, MathJax display (double-dollar) expressions are tiny. -->
+<meta name="viewport" content="initial-scale=1">
+
+<title>Ducci</title>
+<!-- <link href='http://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,400,300,600,700,800' rel='stylesheet' type='text/css'> -->
+<style>
+	body {
+		color: black;
+		background-color: white;
+		margin: 0 auto;
+    padding: 2rem;
+    width: 728px;
+    min-width: 280px;
+    font-family: sans-serif;
+    font-size: 1.03rem;
+    line-height: 1.5;
+    overflow-wrap: break-word;
+	}
+
+	#content {
+		max-width: 800px;
+	}
+
+	#logo {
+		display: block;
+		margin: 0 auto;
+	}
+
+  pre {
+    white-space: pre-wrap !important;
+    /* https://logincorrect.wordpress.com/2014/03/15/controlling-size-pre-tag-mobile-devices/ */
+    font-size: large;
+  }
+
+	p {
+		/* font-family: sans-serif; */
+	}
+
+  h4 {
+    font-size: 1.5rem;
+  }
+  h5 {
+    font-size: 1.3rem;
+  }
+
+	figure {
+		margin-left: 0;
+		text-align: center;
+		display: table;
+	}
+	figcaption {
+		font-style: italic;
+		font-size: smaller;
+		display: table-caption;
+		caption-side: bottom;
+		margin: 0 auto; 
+	}
+
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML">	</script>
+<script>
+MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    processEscapes: true
+  }
+});
+</script>
+<!-- <script src="http://code.jquery.com/jquery-1.9.1.js"></script> -->
+<script>
+// http://stackoverflow.com/a/16159222/8677
+$(function() {
+  return;
+  // At this width, no scaling occurs. Above/below will scale appropriately.
+  var defaultWidth = 1280;
+
+  // This controls how fast the font-size scales. If 1, will scale at the same 
+  // rate as the window (i.e. when the window is 50% of the default width, the 
+  // font-size will be scaled 50%). If I want the font to not shrink as rapidly 
+  // when the page gets smaller, I can set this to a smaller number (e.g. at 0.5,
+  // when the window is 50% of default width, the font-size will be scaled 75%).
+  var scaleFactor = 0.5;
+
+  // choose a maximum and minimum scale factor (e.g. 4 is 400% and 0.5 is 50%)
+  var maxScale = 4;
+  var minScale = 0.5;
+
+  var $html = $("html");
+
+  var setHtmlScale = function() {
+
+    var scale = 1 + scaleFactor * ($html.width() - defaultWidth) / defaultWidth;
+    if (scale > maxScale) {
+      scale = maxScale;
+    }
+    else if (scale < minScale) {
+      scale = minScale;
+    }
+    $html.css('font-size', scale * 100 + '%');
+  };
+
+  $(window).resize(function() {
+    setHtmlScale();
+  });
+
+  setHtmlScale();
+});
+</script>
+
+</head>
+<body>
+<div style="display:none">
+\(\newcommand{\N}{\mathbb{N}}\)
+\(\newcommand{\Z}{\mathbb{Z}}\)
+\(\newcommand{\Q}{\mathbb{Q}}\)
+\(\newcommand{\R}{\mathbb{R}}\)
+\(\newcommand{\C}{\mathbb{C}}\)
+\(\newcommand{\F}{\mathbb{F}}\)
+\(\newcommand{\u}{\mathbf{u}}\)
+\(\newcommand{\v}{\mathbf{v}}\)
+\(\newcommand{\w}{\mathbf{w}}\)
+\(\newcommand{\vz}{\mathbf{0}}\)
+</div>
+	
+<div id='content'>
+<h1>Ducci</h1>
+
+
+<h4>Introduction: The 4-Number Game</h4>
+
+<p>
+    Start with any four non-negative integers, and
+    and at each stage, form a new row by taking the 
+    absolute differences between adjacent elements:
+<pre>
+         3     9     4     12
+         6     5     8      9 
+         1     3     3      3 
+         2     0     0      2 
+         2     0     2      0 
+         2     2     2      2 
+         0     0     0      0 
+         0     0     0      0 
+         0     0     0      0 
+
+</pre>
+</p>
+<p>It will later be shown that no matter what 4 numbers you start with,
+  eventually you'll end up at 0&nbsp;0&nbsp;0&nbsp;0.  This is not true for the n-number
+  game in general.
+</p>
+<hr>
+<h4>The n-Number Game</h4>
+<pre>
+          96     24     138     39     18
+          72    114      99     21     78
+          42     15      78     57     36
+          27     63      21     21     21
+          36     42       0      0     15
+           6     42       0     15     21
+          36     42      15      6     15
+           6     27       9      9     21
+          21     18       0     12     15
+           3     18      12      3      6
+          15      6       9      3      3
+           9      3       6      0     12
+           6      3       6     12      3
+           3      3       6      9      3
+           0      3       3      6      0
+           3      0       3      6      0
+           3      3       3      6      3
+           0      0       3      3      0
+           0      3       0      3      0
+           3      3       3      3      0
+           0      0       0      3      3
+          
+</pre>
+
+<p>
+In what follows, $v$ will be an n-vector of numbers, $(v_1, v_2, \dots, v_n)$.
+</p>
+<p>
+    Let operator $\partial v = \left(|v_1-v_2|, |v_2-v_3|,\dots,|v_n-v_1|\right)$, called the <i>diffy</i> operator.
+    We are to study the fate of an initial n-vector $v_0$. Does it go to all 0's? Does it always repeat, or can it
+    go on forever without repeating, like an irrational number?
+</p>
+<h5>
+  We must always end up in a cycle.
+</h5>
+<p>
+  If the maxium value in a given vector $v$ is $M$, then the absolute difference between it
+  and its two neighbors is at most $M$. That is, the max can only go down or stay the same.
+  Let's call this the <em>Maxiumum Principle</em>:
+  $$ Maxiumum Principle: for every vector v, \max \partial v \le \max v $$
+  By this principle, we can see that for a given initial vector, only a finite number of
+  states are possible, therefore we must always end up in a cycle. 
+
+</p>
+<h5>
+  All nodes within a cycle have the same max M.
+</h5>
+<p>
+  Since the max can never increase, if the max ever went down, it could never go back
+  up to agree with itself. Thus by the Maximum Principle, the max must stay the same
+  within the cycle.
+</p>
+<h5>
+  In-cycle nodes contain 0 or M only.
+</h5>
+<p>
+Let $\rho v = (v_2, v_3, \dots, v_n, v_1)$, the rotate (left) operator. 
+</p>
+<h5>
+  (0, 0, 0, ..., 0, 0, 1) will always end up in a maximal cycle.
+</h5>
+<p>
+$\partial$ is linear and thus if $\partial^s = \partial^t$, then 
+</p>
+<h5>
+  (0, 0, 0, ..., 0, 1, 1) will always be in a maximal cycle.
+</h5>
+<p>
+
+</p>
+<p>
+We immediately notice three things. Both $\partial$ and $\rho$ are linear operators, i.e.
+$$ \partial (\lambda v) = \lambda \partial v $$
+and
+</p>
+$$ \rho (\lambda v) = \lambda \rho v $$
+$$ \partial \rho v = \rho \partial v $$
+<p>
+    Theorems
+    $$ \max \partial v \le \max v $$
+</p>
+<p>
+    <h3>Theorem 2  (Maximum Principle)</h3>
+    For every vector  v, max ∂v ≤ max v. <br>
+    In other words, the maximum can never go up. It can only go down or stay the same.
+</p>
+<p>
+    From the maxiumum principle we get that every node in a given cycle has the same max.
+    From that, in turn, we get that an in-cycle node must contain a 0 next to the max.
+    Somehow from that we get that in-cycle nodes consist only of 0's and M's, where M is the max.
+
+    
+    The first insight comes from Ken's observation that max ∂v ≤ max v. That is, the max can only go down or stay the same.
+    Since all nodes in a cycle are both successors and predecessors, that means the max must remain constant inside a cycle.
+    If  m  is the max, then an in-cycle node  v  must have at least one m.  Furthermore, its successor  ∂v  must contain an
+    m, so the difference between some pair of adjacent elements of  v  must be m.  Thus, v necessarily has an m that is next
+    to a 0.Because of the symmetries involved, we can then assume that an in-cycle node is of the form  (m, 0, ....),
+    alternatively (0, m, ...).
+    Let v be in-cycle and
+    Let  n  be the sum of the lengths of the runs of v containing only m's and 0's, and at least one m.For example, for m =
+    5 and v = (2,5,0,0,5,3,1,1,1,1,1,2,0,0,0,2,5,0,4,5,5),  the number would be 4 +2 + 2 = 8. The run of three 0's in the middle
+    doesn't contribute. If there even one non-max, non-zero element in  v, then the n-value for the successor of v will
+    strictly go down.  Note that m's cannot be created outside our chosen segments. As can be seen in the
+    above example, 0's can be created but only in the interior of a non-chosen segment.
+    Also note that we could just use the simpler "number of m's" because it's possible that this value could increase.
+    Example:  (0,5,0,5,1,2) -> (5,5,5,4,1,1).
+      Thus if the vector v was not purely 0's and m's then m is not the max after all, a contradiction.    
+</p>
+<p>
+    Since every in-cycle vector is made up of 0's and m's, when studying cycles, we can divide
+    everything through by m, and just work with 0-1 vectors.
+    In fact, |x−y| is simply x ⊕ y, that is xor, when x and y are {0,1}.
+    Treating our vectors now as bit vectors, we see that
+    $\rho$ is the machine instruction rotate left, and <br />
+    $\partial$ is a rotate combined with an xor.
+</p>
+		<p>
+
+		<figure id='codes'>
+			<img src='http://24.media.tumblr.com/e6aed8fb200c0aa7af4d49273f1db88f/tumblr_mijphbfgbc1s5nl47o1_500.jpg'>
+			<figcaption style='caption-side: top; margin-left: 10px'>Not a Vector</figcaption>
+		</figure>
+
+		</p>
+  
+<h2> With Reals </h2>
+<h4> Canonical Form </h4>
+In particular, n=4.
+
+
+
+        $$\begin{array}{cc}
+        a & b \\
+        c & c
+        \end{array}$$
+
+$$
+\begin{eqnarray}
+F &=& ma\\
+  &=& IR
+\end{eqnarray}
+$$
+
+$$
+\begin{eqnarray}
+\partial^{1,000,000} &=& \partial^{2^{19}} + \partial^{2^{18}} + \partial^{2^{17}} + \partial^{2^{16}} +
+\partial^{2^{14}} + \partial^{2^{9}} + \partial^{2^{6}}\\
+ &=& (I \oplus \rho^{35})(I \oplus \rho^{36})(I \oplus \rho^{18})(I
+\oplus \rho^{9})(I \oplus \rho^{30})(I \oplus \rho^{31})(I \oplus \rho^{27})
+\end{eqnarray}
+$$
+
+	</div> <!-- content -->
+</body>
+</html>

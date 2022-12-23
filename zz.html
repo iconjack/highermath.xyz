@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: rgb(181, 209, 57);
+            height: 100%;
+        }
+
+        canvas {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+    </style>
+
+    <script>
+        function $(id) {
+            return document.getElementById(id);
+        }
+
+        //    GLOBALS
+        var ctx, changed;
+        var w = 400;
+        var h = 400;
+        var sourcePoint = { x: 1.0, y: 0.0 };
+
+        //  z = {x: ..., y: ...}
+
+        function Neg(z) {
+            return {x: -z.x, y: -z.y};
+        }
+
+        function Add(z, w) {
+            return {x: z.x + w.x, y: z.y + w.y};
+        }
+
+        function Sub(z, w) {
+            return Add(z, Neg(w));
+        }
+
+        function Abs(z) {
+            return Math.sqrt(z.x * z.x + z.y * z.y);
+        }
+
+        function Mul(z, w) {
+            return { x: z.x * w.x - z.y * w.y, y: z.x * w.y + z.y * w.x };
+        }
+
+        function Log(z) {
+            let r = Math.sqrt(z.x * z.x + z.y * z.y);
+            return { x: Math.log(r), y: Math.atan2(z.y, z.x) };
+        }
+
+        function Exp(z) {
+            let r = Math.exp(z.x);
+            return { x: r * Math.cos(z.y), y: r * Math.sin(z.y) };
+        }
+
+        function Pow(z, w) {
+            return Exp(Mul(w, Log(z)));
+        }
+
+        onload = function () {
+            console.log('hi');
+            let canvas = $('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            ctx = canvas.getContext('2d');
+            changed = true;
+            console.log(canvas.width);
+            requestAnimationFrame(draw);
+
+            document.addEventListener('keydown', function (kbdevt) {
+                let delta = 0.2;
+                if (kbdevt.keyCode == 65) {
+                    dashoffset -= delta;
+                    changed = true;
+                }
+                if (kbdevt.keyCode == 66) {
+                    dashoffset += delta;
+                    changed = true;
+                }
+                return false;
+            });
+
+            window.onfocus = function () {
+                t0 = null;
+            }
+
+            window.onblur = function () {
+            }
+
+            window.addEventListener('resize', function (evt) {
+                if (window.innerWidth !== w) {
+                    w = h = Math.min(window.innerWidth, window.innerHeight) - 2;
+                    ctx.canvas.width = w
+                    ctx.canvas.height = h;
+                    changed = true;
+                    return true;
+                }
+            });
+
+            window.dispatchEvent(new Event('resize'));
+
+        }
+
+
+        var dashoffset = 0;
+        var t0 = null;
+        var buzzing = true;
+
+        function draw(t) {
+            if (!t0) t0 = t;
+            t = (t - t0) / 2000.0;
+            sourcePoint.x = Math.cos(t);
+            sourcePoint.y = Math.sin(t);
+            changed = true;
+
+            if (changed) {
+
+                if (Abs(Sub(sourcePoint, { x: 1.0, y: 0.0 })) < 0.05 && !buzzing) {
+                    navigator.vibrate(50);
+                    console.log("bzzzzt");
+                    buzzing = true;
+                }
+                
+                if (Abs(Sub(sourcePoint, { x: 0.0, y: 1.0 })) < 0.05) {
+                    buzzing = false;
+                }
+                // draw a circle
+
+                // ctx.scale(w,h);
+                ctx.save();
+
+                ctx.fillStyle = 'rgb(100, 220, 100)';
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                // ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+
+                ctx.translate(w / 2, h / 2);
+
+                ctx.beginPath();
+                ctx.moveTo(-w, 0);
+                ctx.lineTo(w, 0);
+                ctx.lineWidth = 1.0;
+                ctx.strokeStyle = 'black';
+                ctx.stroke();
+
+                ctx.lineWidth = 2.0;
+                ctx.setLineDash([8, 9]);
+                ctx.lineDashOffset = dashoffset;
+                ctx.strokeStyle = 'black';
+                ctx.beginPath();
+                ctx.arc(0, 0, .35 * w, 0, 360);
+                ctx.stroke();
+
+                ctx.fillStyle = 'black';
+                ctx.beginPath();
+                ctx.ellipse(.35 * w, 0, .005 * w, .005 * h, Math.PI / 4, 0, 2 * Math.PI);
+                ctx.fill();
+
+
+
+                ctx.font = '24px serif';
+                ctx.fillStyle = 'black';
+                ctx.fillText('1', .35 * w + .01 * w, -.015 * w);
+
+                ctx.beginPath();
+                ctx.ellipse(0, 0, .005 * w, .005 * h, Math.PI / 4, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.fillText('0', -.005 * w, -.015 * w);
+
+                ctx.beginPath();
+                ctx.ellipse(-.35 * w, 0, .005 * w, .005 * h, Math.PI / 4, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.fillText('\u22121', -.383 * w, -.015 * w);
+
+                ctx.font = 'italic 24px serif';
+
+                ctx.beginPath();
+                ctx.ellipse(0, .35 * w, .005 * w, .005 * h, Math.PI / 4, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.fillText('i', -.005 * w, -.368 * w);
+
+                ctx.beginPath();
+                ctx.ellipse(0, -.35 * w, .005 * w, .005 * h, Math.PI / 4, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.fillText('\u2212i', -.015 * w, .383 * w);
+
+                // draw source point
+                ctx.beginPath();
+                ctx.setLineDash([]);
+                ctx.fillStyle = 'red';
+                ctx.ellipse(sourcePoint.x * .35 * w, -sourcePoint.y * .35 * h, .012 * w, .012 * h, Math.PI / 4, 0, 2 * Math.PI);
+                ctx.fill();
+
+                ctx.font = 'italic 40px serif';
+                ctx.fillStyle = 'black'
+                ctx.fillText('z', sourcePoint.x * .35 * w + .02 * w, -sourcePoint.y * .35 * h - 0.02 * h);
+
+                // draw dest point
+                let z = sourcePoint;
+                let logz = Log(z);
+                let ez = Exp(z);
+                let zz = Pow(z, z);
+                ctx.beginPath();
+                ctx.setLineDash([]);
+                ctx.fillStyle = 'blue';
+                ctx.ellipse(zz.x * .35 * w, -zz.y * .35 * h, .012 * w, .012 * h, Math.PI / 4, 0, 2 * Math.PI);
+                ctx.fill();
+
+                ctx.fillStyle = 'black';
+                ctx.fillText('z', zz.x * .35 * w + .02 * w, -zz.y * .35 * h - 0.02 * h);
+                ctx.font = 'italic 28px serif';
+                ctx.fillText('z', zz.x * .35 * w + .04 * w, -zz.y * .35 * h - 0.04 * h);
+
+                ctx.restore();
+                changed = false;
+            }
+            requestAnimationFrame(draw);
+        }
+
+    </script>
+
+</head>
+
+<body>
+    <canvas id='canvas'></canvas>
+</body>
+
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Nice Rack</title>
+
+    <style>
+        body {
+            max-width: 6in;
+            margin-left: 20%;
+            margin-right: auto;
+        }
+        p {
+            font-size: 14pt;
+            width: 6in;
+        }
+    </style>
+
+    <script>
+    </script>
+
+</head>
+
+<body>
+    <img src="rackgraph.png" />
+The green line is an upper bound for the number of available positions for big balls; the orange line
+is the number of big balls we're required to place to form a solution.
+<p>
+For each n > 2, we form a triangle made up of N&nbsp;=&nbsp;n(n+1)/2 balls. The goal is to arrange the balls,
+numbered 1 through N, in the inverted triangle such that the ball directly underneath two other
+balls is the absolute difference of the two above balls.
+
+Number the rows 1 through n, where Row&nbsp;n has n balls.
+The top row is Row&nbsp;n and the bottom row, consisting of a single ball, is Row&nbsp;1.
+<p>
+The ball directly below two other balls is called the child ball of the two upper balls, which are
+known as the parent balls.
+It's easily seen that no child ball can be larger than either of its parents. A child can be
+smaller than both parents however.
+</p>
+
+</p>u
+<p>
+The highest numbered ball, Ball N, sometimes called the high ball. Since the N Ball can have no parent,
+it must reside on the top row of any solution.
+</p>
+<p>
+
+Big balls and small balls. The top n+1 balls are called <dfn>big balls</dfn>. In the n=5 case, the big balls
+are the &#x24EF;, &#x24EE;, &#x24ED;, &#x24EC;, &#x24EB;, and &#x2793;. 
+</p>
+<p>
+Small balls are the lowest n balls, ball 1 through ball n. In the case of n=5, the small
+balls are 1,2,3,4,5.
+</p>
+<p>
+    Notice there are 6 big balls, one more than there are small balls. This is true in
+    general: there are n+1 big balls and n small balls.
+</p>
+<p>
+The child of two big balls is always (ironically) a small ball. Not all smalls balls have two
+big parents though.
+The only way to produce a big child is by one big-ball parent and one small-ball parent. 
+Remember, balls on the top row do not have parents.
+</p>
+<p>
+Let M<sub>k</sub> be the maximum ball of Row k. <br />
+We have: <br />
+M<sub>1</sub>&nbsp;<&nbsp;M<sub>2</sub>&nbsp;<&nbsp;&middot;&middot;&middot;&nbsp;<&nbsp;M<sub>n</sub>&nbsp;=&nbsp;N 
+</p>
+<p>
+child = larger parent - smaller parent
+larger parent = child + smaller parent
+
+We have M<sub>1</sub> + sp2 + sp3 + ... spn = N.
+i.e.  n numbers chosen from 1..n that sum to N.
+This can only happen if those n numbers are {1,...n}.
+Thus we have exactly one small ball per row. <br />
+In particular, the bottom ball is small.
+</p>
+Upper bound for balls on Row k.  Must be less than or equal to
+N - 1 - 2 - ... - (n-k)
+
+<p>
+Not much room for big balls. 
+A row with 2 or more big balls must be below a parent row with 2 or more big balls that are not adjacent.
+Row n-1 can have two big balls but they cannot be adjacent. Thus Rows n-2 and below can have at most 
+one big ball.
+If Row n-1 has only one big ball, then...
+If Row n-1 has exactly two big balls, then...
+
+The very bottom rows can't have any big balls.
+The top row can have at most 3 + (n-4)/3 balls
+
+
+</p>
+<p>
+</p>
+<p>
+</p>
+<p>
+</p>
+<p>
+</p>
+
+
+</body>
+
+</html>
+

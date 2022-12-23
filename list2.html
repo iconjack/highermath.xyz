@@ -1,0 +1,91 @@
+
+
+<html>
+<head>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .item {
+        background-color: beige;
+        font-size: 8vh;
+        height: 10vh;
+    }
+
+    .item.leaving {
+        background-color: lime;
+        color: red;
+    }
+
+    .item:nth-child(7n) {
+        background-color: moccasin;
+    }
+ 
+    .item:nth-child(7n+1) {
+        background-color: beige;
+    }
+
+    .item:nth-child(7n+2) {
+        background-color: wheat;
+    }
+ 
+    .item:nth-child(7n+3) {
+        background-color: burlywood;
+    }
+ 
+    .item:nth-child(7n+4) {
+        background-color: goldenrod;
+    }
+ 
+    .item:nth-child(7n+5) { 
+        background-color: khaki;
+    }
+     .item:nth-child(7n+6) {
+        background-color: lemonchiffon;
+    }
+ 
+</style>
+<script>
+    onload = function() {
+        setTimeout(go, 2000);
+    }
+
+    function go() {
+        let leavings = document.getElementsByClassName("leaving");
+        console.log(leavings);
+    }
+
+</script>
+</head>
+<body>
+<div id='list'>
+    <div class='item'>bananas</div>
+    <div class='item'>apples</div>
+    <div class='item'>grapes</div>
+    <div class='item'>cheddar&nbsp;cheese</div>
+    <div class='item'>bread</div>
+    <div class='item'>greek&nbsp;yogurt</div>
+    <div class='item'>half & half</div>
+    <div class='item leaving'>peanut&nbsp;butter</div>
+    <div class='item'>tonic</div>
+    <div class='item'>whole&nbsp;milk</div>
+    <div class='item'>lettuce</div>
+    <div class='item'>snap peas</div>
+    <div class='item'>mushrooms</div>
+    <div class='item'>limes</div>
+    <div class='item'>tortillas</div>
+    <div class='item'>hot dogs</div>
+    <div class='item'>broccoli</div>
+    <div class='item'>cashews</div>
+    <div class='item'>coke zero</div>
+    <div class='item'>cream of pineapple soup</div>
+    <div class='item'>3lb shrimp</div>
+    <div class='item'>rice</div>
+    <div class='item'>pork chops</div>
+    <div class='item'>granola</div>
+</div>
+</body>
+</html>

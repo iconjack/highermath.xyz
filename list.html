@@ -1,0 +1,179 @@
+<html>
+
+<head>
+<style>
+    #newitem {
+        /* position: fixed;
+        top: .3in;
+        left: .3in; */
+        width: 2in;
+    }
+
+    #list-container {
+        /* position: fixed;
+        top: .5in; */
+        height: 4in;
+        overflow-y: auto;
+    }
+
+    li {
+        font-size: 24px;
+    }
+
+</style>
+<script src="//cdn.jsdelivr.net/npm/faunadb@latest/dist/faunadb-min.js"></script>
+<script>
+    function $(id) {
+        return document.getElementById(id);
+    }
+
+    /*
+        item format:
+        {  desc: string,  time: string, deleted: bool }
+    */
+
+    // insert a new item into the list
+    
+    function add_item(desc) {
+        let time = Date.now();
+        with(faunadb.query) {
+            client.query(
+                Create(Collection('items'), { data: { description: desc, deleted: false, time: time } })
+            )
+            .then(() => console.log("supposedly created an item"));
+        }
+    }
+
+
+    //  record (or document as fauna calls it) 
+    //  ref:
+    //  ts:  integer timestamp
+    //  data: Object
+    //  
+    function create_list_item(ul, record) {
+        let item = record.data;
+        let q = faunadb.query;
+        let month;
+        console.log(record.ts);
+        client.query(
+            q.Month(record.ts)
+        )
+        .then(function(ret) {
+            month = ret;
+            let li = document.createElement("li");
+            let text = document.createTextNode(item.description + " " + month.toString());
+            li.appendChild(text);
+            ul.appendChild(li)
+         });
+
+
+        // TO DO: create list item (maybe it's just a div) by cloning a template
+        // let template = document.getElementById('item-template');
+        // let clone = template.cloneNode(template);
+        // clone.innerHTML = item.description;
+
+        // let li = document.createElement("li");
+        // let text = document.createTextNode(item.description + " " + month.toString());
+        // li.appendChild(text);
+        // ul.appendChild(li)
+    }
+
+    // refreshes the list
+    function get_list() {
+
+        // with(faunadb.query) {
+        //     var helper = client.paginate(
+        //         Match(
+        //             Index('all_items'),
+        //         )
+        //     );
+        //     helper.each(function (page) {
+        //         // Logs the page's contents,
+        //         // for example: [ Ref(Collection("test"), "1234"), ... ]
+        //         console.log(page);
+        //     });
+        // }
+
+        // return;
+
+                    // a = [];
+                    // with(faunadb.query) {
+                    //     client.query(
+                    //         Map(
+                    //             Paginate(
+                    //                 Match(Index("all_items"))
+                    //             ),
+                    //             Lambda("X", a.push(Get(Var("X"))))
+                    //         )
+                    //     )
+                    //     .then(() => console.log(a));
+                    // }
+
+                    // return;
+
+        let list = document.getElementById('the_list');
+        let parent = list.parentElement;
+        parent.removeChild(list);
+
+        list = document.createElement("ul");
+        list.setAttribute("id", "the_list");
+
+        with(faunadb.query) {
+            var all =  client.query(
+                Paginate(Documents(Collection('items')), { size: 20 }),
+            )
+            .then(function(ret) {
+                for (var i = 0; i < ret.data.length; i++) {
+                    let id = ret.data[i].value.id;
+                    client.query(
+                        Get(Ref(Collection('items'), id))
+                    )
+                    .then(function(doc) {
+                        create_list_item(list, doc);
+                    });
+                }
+                parent.appendChild(list);  // don't be tempted to pull this out of 'then' clause
+            });
+        }
+    }
+
+    function add_button_click() {
+        let desc = $('add_text').value;
+        console.log(desc);
+        add_item(desc);
+        get_list();
+    }
+
+
+    onload = function() {
+        let p = client.ping();
+        p.then(()=>console.log('pinged'));
+        console.log(p);
+        add_item("cheez-its");
+        get_list();
+        $('add_button').addEventListener("click", add_button_click);
+      }
+
+    // global
+    var client = new faunadb.Client({
+        secret: "fnAD15hPbyACANkTfnHRxAi0AZJZWYF0q9YXT12M"
+    });
+
+ </script>
+</head>
+<body>
+    <div id='newitem'>
+    <input id='add_text' type='text'> </input>
+    <button id='add_button'> Add </button>
+    </div>
+
+    <div id='list-container'>
+        <ul id='the_list'>
+        </ul>
+    </div>
+
+    <div id='item-template' style='visibility: hidden'>  
+    </div>
+</body>
+
+</html>
