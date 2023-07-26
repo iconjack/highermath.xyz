@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: rgb(248, 208, 122);
+            height: 100%;
+        }
+
+        canvas {
+            display: block;  /* oddly, canvas is inline by default */
+            margin-left: auto;
+            margin-right: auto;
+        }
+    </style>
+
+    <script src="canvas.js"></script>
+    <script src="numbertheory.js"></script>
+    <script src="complex.js"></script>
+
+    <script>
+        function $(id) {
+            return document.getElementById(id);
+        }
+
+        //    GLOBALS
+        var ctx, changed;
+        var w = 400;
+        var h = 400;
+        const PI = Math.PI;
+        var p = 59;
+
+
+        onload = function () {
+            let canvas = $('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            ctx = canvas.getContext('2d');
+            changed = true;
+            requestAnimationFrame(update);
+
+            document.addEventListener('keydown', function (kbdevt) {
+                let delta = 0.2;
+                if (kbdevt.keyCode == 65) {
+                    dashoffset -= delta;
+                    changed = true;
+                }
+                if (kbdevt.keyCode == 66) {
+                    dashoffset += delta;
+                    changed = true;
+                }
+                return false;
+            });
+
+            document.addEventListener('keydown', function(kbdevt) {
+                console.log(kbdevt.code);
+                if (kbdevt.code == "ArrowRight") {
+                    p = NextPrime(p);
+                }
+                if (kbdevt.code == "ArrowLeft") {
+                    if (p > 2)
+                        p = PrevPrime(p);
+                }
+                changed = true;
+            });
+
+            window.onfocus = function () {
+                t0 = null;
+            }
+
+            window.onblur = function () {
+            }
+
+            window.addEventListener('resize', function (evt) {
+                if (window.innerWidth !== w) {
+                    w = h = Math.min(window.innerWidth, window.innerHeight) /*- 2*/; // what's with the -2?
+                    ctx.canvas.width = w
+                    ctx.canvas.height = h;
+                    changed = true;
+                    return true;
+                }
+            });
+
+            /*window.*/dispatchEvent(new Event('resize'));
+
+        }
+
+        //  draw given text centered at x,y
+        function PutText(ctx, text, x, y) {
+            let tm = ctx.measureText(text);
+            let width = tm.width;
+            let height = tm.actualBoundingBoxAscent + tm.actualBoundingBoxDescent;  // no such thing as tm.height!
+            // height = ctx.measureText('M').width;
+            ctx.save();
+            ctx.translate(-width/2, height/2);
+            // ctx.fillText(text, x - width/2, y);
+            ctx.fillText(text, x, y);
+            ctx.restore();
+        }
+
+        var dashoffset = 0;
+        var t0 = null;
+        var buzzing = true;
+        var ONE = {x: 1.0, y: 0.0};
+        var counter = 0;
+
+        function update(t) {
+            if (changed) {
+                changed = draw(t);
+            }
+            requestAnimationFrame(update);
+        }
+
+        function draw_point(x, y, color='black') {
+            ctx.save();
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.ellipse(.35*w*x, .35*w*y, .0075 * w, .0075 * h, Math.PI / 4, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function draw(t) {
+            if (!t0) t0 = t;
+            t = (t - t0) / 2000.0;
+            counter++;
+
+            if (changed) {
+
+                ctx.clearRect(0, 0, w, h);
+                ctx.save();
+
+                ctx.translate(w / 2, h / 2);   // make (0,0) the center of the screen
+
+                ctx.font = "42px sans-serif";
+                PutText(ctx, `ℤ/${p.toString()}ℤ`, 0, 0);  // p in center
+                draw_point(0, -0.12, color=(p%4==3) ? 'red' : 'black');
+                ctx.lineWidth = 2.0;
+                ctx.strokeStyle = 'black';
+                ctx.beginPath();
+                ctx.arc(0, 0, .35 * w, 0, 360);
+                ctx.stroke();
+
+                //  compute location of each node
+                let points = [];
+                for (let nth = 0; nth < p; nth++) {
+                    let theta = 2*Math.PI*nth / p;
+                    let z = Rectangular(1.0, theta - Math.PI/2);
+                    points.push(z);
+                }
+
+                for (let n = 0; n < p; n++) {
+                    let z = points[n];
+                    let x = z.x, y = z.y;
+                    let color = 'red';
+                    if (QuadraticResidue(n, p))
+                        color = 'black';
+                        if (n == 0) color = 'green';
+                    draw_point(x, y, color);
+
+                    let label = n.toString();
+                    let fontsize = 24;
+                    if (p > 61) fontsize = 20;
+                    if (p > 89) fontsize = 18;
+                    if (p > 97) fontsize = 15;
+                    if (p > 101) fontsize = 12;
+                    if (p > 113) fontsize = 10;
+                    if (p > 137) fontsize = 8;
+                    ctx.font = `${fontsize}px serif`;
+                    ctx.fillStyle = 'black';
+                    // ctx.fillText(label, .35*w * 1.05*x, .35*w * 1.05*y);
+                    PutText(ctx, label, .35*w * 1.07*x, .35*w * 1.07*y);
+                    // ctx.fillText(label, .35*w * 1.05*x, .35*w * 1.05*y);
+                }
+
+                for (let n = 1; n < p; n++) {
+                    let z1 = points[n];
+                    let z2 = points[InvMod(p,n)];
+
+                    //  draw an arc from z1 to z2
+                    //  by picking a control point toward the center of the circle,
+                    //  on the radius midway between z1 an z2
+                    let ctrlz = Mul(Add(z1,z2), {x:0.5, y:0.0});
+                    ctrlz = Polar(ctrlz.x, ctrlz.y);
+                    ctrlz.r = 0.71;
+                    ctrlz = Rectangular(ctrlz.r, ctrlz.theta);
+
+                    // console.log(z1, z2);
+                    let x1 = .35*w*ctrlz.x;
+                    let y1 = .35*w*ctrlz.y;
+
+                    let x0 = .35*w*z1.x, y0 = .35*w*z1.y;
+                    let x2 = .35*w*z2.x; y2 = .35*w*z2.y;
+
+                    ctx.beginPath();
+                    ctx.moveTo(x0, y0);
+                    ctx.quadraticCurveTo(x1, y1, x2, y2);
+                    ctx.stroke();
+                }
+
+                // draw the point 
+                ctx.restore();
+            }
+            return false; // return 'more to do'
+            // requestAnimationFrame(draw);
+        }
+
+    </script>
+
+</head>
+
+<body>
+    <canvas id='canvas'></canvas>
+</body>
+
+</html>
