@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  input[type="number"] {
+    text-align: right;
+  }
+</style>
+
+<script>
+    $ = (id) => document.getElementById(id);
+
+    onload = function() {
+        const code = $('foo').textContent;
+        $('bar').textContent = code;
+    }
+
+    function dobatch() {
+        let output = `${(wins/games).toFixed(8).bold()}  (${wins} wins for Alice in ${games} games)`
+        $('results').innerHTML = output;
+
+        let remaining = N - games;
+        if (remaining !== 0) {
+            let batch = Math.min(100, remaining)
+            wins += monte(batch);
+            games += batch;
+            setTimeout(dobatch, 0);
+        }
+    }
+
+    function run() {
+        N = parseInt(document.getElementById('N').value);
+        wins = 0;
+        games = 0;
+        setTimeout(dobatch, 0);
+    }
+
+</script>
+
+<script id='foo'>
+// Run  N  games and return the number of times Alice wins
+
+function monte(N) {
+
+    //   Of the 460,800 (4*6*8*10*12*20) possible rolls,
+    //   the sum is prime  114,399 times, and even 230,400 times (½)
+    //   and neither 116,001 times.
+
+    const a = 114_399 / 460_800;
+    const b = 230_400 / 460_800;
+    const c = 116_001 / 460_800;
+
+    // returns 0 for Alice rolls, 1 for Bob, 2 for Cat
+
+    function roll() {
+        r = Math.random();
+        if (r <= a)   return 0;
+        if (r <= a+b) return 1;
+        return 2;
+    }
+
+    //  simulate a game where  n  consecutive favorable rolls are required 
+    //  return true if Alice wins, false if Bob wins,
+    //  i.e. gets n consecutive favorable rolls
+
+    function game(n) {
+        let streaks = [0, 0];
+        while (true) {
+            let r = roll();
+            if (r == 2) 
+                streaks = [0, 0];  // both streaks end
+            else {
+                if (++streaks[r] == n) return r === 0;
+                streaks[1-r] = 0;  // other player's streak ends
+            }
+        }
+    }
+
+    let wins = 0;
+    for (let i = 0; i < N; i++) {
+        wins += game(13);
+    }
+    return wins;
+}
+</script>
+
+<body>
+    <pre><code id='bar'> ... </code></pre>
+    <hr>
+    N = <input id='N' type=number size=10 value=100000 min=0 step=10000>
+    <button onclick="run()">RUN</button>
+    &nbsp;&nbsp;&nbsp;<span id='results'> ... </span> <br />
+</body>
+</html>
