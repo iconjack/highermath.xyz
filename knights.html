@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Knights Switching Puzzle</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #fff;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            cursor: pointer;
+            margin-bottom: 0;
+            display: block;
+        }
+        button {
+            padding: 6px 15px;
+            font-size: 14px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #c0392b;
+        }
+        #message {
+            font-size: 20px;
+            font-weight: bold;
+            height: 30px;
+            margin: 0;
+        }
+        
+        /* Mobile-specific styles */
+        @media screen and (max-width: 500px) {
+            canvas {
+                width: 90vw;
+                height: 90vw;
+                max-width: 400px;
+                max-height: 400px;
+            }
+            button {
+                padding: 8px 16px;
+                font-size: 14px;
+            }
+            #message {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <p style="font-style: italic; margin: 0; line-height: 1;">
+            <span style="text-transform: none;">s</span><span style="text-transform: uppercase; font-size: 0.8em;">witch the positions of black and white knights</span>
+        </p>
+        <button id="resetBtn">Reset Game</button>
+        <div id="message" style="margin: 0;"></div>
+    </div>
+
+    <script>
+        // Game constants and variables
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const resetBtn = document.getElementById('resetBtn');
+        const messageEl = document.getElementById('message');
+        
+        const CELL_SIZE = 100; // We'll keep this at 100 since we have 4 cells
+        const BOARD_WIDTH = 4;  // Max x-coordinate is 3
+        const BOARD_HEIGHT = 4; // Max y-coordinate is 3
+        const GRID_OFFSET_X = 0; // Remove padding around the board
+        const GRID_OFFSET_Y = 0;
+
+        // Knight movement offsets in (x,y) format
+        const KNIGHT_MOVES = [
+            {x: 1, y: 2}, {x: 2, y: 1},
+            {x: 2, y: -1}, {x: 1, y: -2},
+            {x: -1, y: -2}, {x: -2, y: -1},
+            {x: -2, y: 1}, {x: -1, y: 2}
+        ];
+        
+        // Valid board cells with coordinates (x,y) where (0,0) is bottom-left
+        // These are the 10 squares specified: (0,0), (1,0), (2,0), (3,0), (1,1), (2,1), (3,1), (1,2), (2,2), (1,3)
+        // We'll use a map to represent which cells exist and what they contain
+        // 0 = empty cell, 1 = white knight, 2 = black knight
+        const validCells = new Set([
+            '0,0', '1,0', '2,0', '3,0',
+            '1,1', '2,1', '3,1',
+            '1,2', '2,2',
+            '1,3'
+        ]);
+        
+        // Initial board state based on the image
+        const initialState = {
+            '0,0': 2, // black knight (bottom left)
+            '1,0': 0, // empty
+            '2,0': 2, // black knight
+            '3,0': 0, // empty
+            '1,1': 0, // empty
+            '2,1': 1, // white knight (updated position)
+            '3,1': 0, // empty
+            '1,2': 0, // empty
+            '2,2': 0, // empty
+            '1,3': 1  // white knight (top left)
+        };
+        
+        // Goal state - knights have switched positions
+        const goalState = {
+            '0,0': 1, // white knight (was black)
+            '1,0': 0, // empty
+            '2,0': 1, // white knight (was black)
+            '3,0': 0, // empty
+            '1,1': 0, // empty
+            '2,1': 2, // black knight (was white)
+            '3,1': 0, // empty
+            '1,2': 0, // empty
+            '2,2': 0, // empty
+            '1,3': 2  // black knight (was white)
+        };
+        
+        // Current game state
+        let gameState = {...initialState};
+        
+        // Convert from logical coordinates (x,y) to canvas coordinates
+        function coordToCanvasPos(x, y) {
+            // In canvas, (0,0) is top-left, but in our coordinates (0,0) is bottom-left
+            // So we need to flip the y-coordinate
+            return {
+                canvasX: GRID_OFFSET_X + x * CELL_SIZE,
+                canvasY: GRID_OFFSET_Y + (BOARD_HEIGHT - 1 - y) * CELL_SIZE
+            };
+        }
+        
+        // Convert from canvas position to logical coordinates
+        function canvasPosToCoord(canvasX, canvasY) {
+            const x = Math.floor((canvasX - GRID_OFFSET_X) / CELL_SIZE);
+            const y = BOARD_HEIGHT - 1 - Math.floor((canvasY - GRID_OFFSET_Y) / CELL_SIZE);
+            return {x, y};
+        }
+        
+        // Drag and drop variables
+        let isDragging = false;
+        let selectedPiece = null;
+        let startX, startY, startCoord;
+        let validMoves = [];
+        
+        // Function to initialize or reset the game
+        function resetGame() {
+            gameState = {...initialState};
+            messageEl.textContent = '';
+            drawBoard();
+        }
+        
+        // Function to draw the board
+        function drawBoard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw the L-shaped chess board cells
+            for (const coordStr of validCells) {
+                const [x, y] = coordStr.split(',').map(Number);
+                const {canvasX, canvasY} = coordToCanvasPos(x, y);
+                
+                // Draw cell background with alternating light/dark green (checkerboard)
+                // In chess, if row+col is even -> dark square, if odd -> light square
+                const isLightSquare = (x + y) % 2 === 1;
+                ctx.fillStyle = isLightSquare ? '#A2D149' : '#759656'; // Light and dark green
+                ctx.fillRect(canvasX, canvasY, CELL_SIZE, CELL_SIZE);
+                
+                // Draw cell border
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(canvasX, canvasY, CELL_SIZE, CELL_SIZE);
+                
+                // Add small dots in the upper right corners of specific squares
+                if (coordStr === '0,0' || coordStr === '2,0') {
+                    // White dots in the upper right corner of black knights' starting positions
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(canvasX + CELL_SIZE - 8, canvasY + 8, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                else if (coordStr === '1,3' || coordStr === '2,1') {
+                    // Black dots in the upper right corner of white knights' starting positions
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(canvasX + CELL_SIZE - 8, canvasY + 8, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Draw chess piece if present
+                if (gameState[coordStr] === 1 || gameState[coordStr] === 2) {
+                    const color = gameState[coordStr] === 1 ? '#fff' : '#333'; // White or black knight
+                    
+                    // Draw simple silhouette knight
+                    ctx.fillStyle = color;
+                    
+                    // Knight shape path
+                    ctx.beginPath();
+                    ctx.moveTo(canvasX + CELL_SIZE * 0.3, canvasY + CELL_SIZE * 0.8);
+                    ctx.lineTo(canvasX + CELL_SIZE * 0.7, canvasY + CELL_SIZE * 0.8);
+                    ctx.lineTo(canvasX + CELL_SIZE * 0.7, canvasY + CELL_SIZE * 0.5);
+                    ctx.lineTo(canvasX + CELL_SIZE * 0.5, canvasY + CELL_SIZE * 0.5);
+                    ctx.lineTo(canvasX + CELL_SIZE * 0.7, canvasY + CELL_SIZE * 0.3);
+                    ctx.lineTo(canvasX + CELL_SIZE * 0.6, canvasY + CELL_SIZE * 0.2);
+                    ctx.lineTo(canvasX + CELL_SIZE * 0.5, canvasY + CELL_SIZE * 0.3);
+                    ctx.lineTo(canvasX + CELL_SIZE * 0.4, canvasY + CELL_SIZE * 0.2);
+                    ctx.lineTo(canvasX + CELL_SIZE * 0.3, canvasY + CELL_SIZE * 0.3);
+                    ctx.lineTo(canvasX + CELL_SIZE * 0.4, canvasY + CELL_SIZE * 0.5);
+                    ctx.lineTo(canvasX + CELL_SIZE * 0.3, canvasY + CELL_SIZE * 0.8);
+                    ctx.fill();
+                }
+            }
+            
+            // Show dots in the center of valid move squares
+            if (selectedPiece && validMoves.length > 0) {
+                validMoves.forEach(move => {
+                    const {canvasX, canvasY} = coordToCanvasPos(move.x, move.y);
+                    
+                    // Draw a circle in the center of the square
+                    const centerX = canvasX + CELL_SIZE / 2;
+                    const centerY = canvasY + CELL_SIZE / 2;
+                    const radius = CELL_SIZE / 12; // 1/6 of cell size (diameter)
+                    
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; // Semi-transparent black dot
+                    ctx.fill();
+                });
+            }
+            
+            // Draw the selected piece while dragging
+            if (isDragging && selectedPiece) {
+                const color = selectedPiece.type === 1 ? '#fff' : '#333';
+                ctx.fillStyle = color;
+                
+                // Knight shape path
+                const x = selectedPiece.canvasX - CELL_SIZE * 0.4;
+                const y = selectedPiece.canvasY - CELL_SIZE * 0.4;
+                const size = CELL_SIZE * 0.8;
+                
+                ctx.beginPath();
+                ctx.moveTo(x + size * 0.3, y + size * 0.8);
+                ctx.lineTo(x + size * 0.7, y + size * 0.8);
+                ctx.lineTo(x + size * 0.7, y + size * 0.5);
+                ctx.lineTo(x + size * 0.5, y + size * 0.5);
+                ctx.lineTo(x + size * 0.7, y + size * 0.3);
+                ctx.lineTo(x + size * 0.6, y + size * 0.2);
+                ctx.lineTo(x + size * 0.5, y + size * 0.3);
+                ctx.lineTo(x + size * 0.4, y + size * 0.2);
+                ctx.lineTo(x + size * 0.3, y + size * 0.3);
+                ctx.lineTo(x + size * 0.4, y + size * 0.5);
+                ctx.lineTo(x + size * 0.3, y + size * 0.8);
+                ctx.fill();
+            }
+        }
+        
+        // Function to get valid moves for a knight at given coordinates
+        function getValidMoves(x, y) {
+            const moves = [];
+            
+            KNIGHT_MOVES.forEach(move => {
+                const newX = x + move.x;
+                const newY = y + move.y;
+                const newCoord = `${newX},${newY}`;
+                
+                // Check if the move is to a valid cell on our L-shaped board
+                // and that the destination is empty
+                if (validCells.has(newCoord) && gameState[newCoord] === 0) {
+                    moves.push({x: newX, y: newY});
+                }
+            });
+            
+            return moves;
+        }
+        
+        // Function to check if the goal state is reached
+        function checkWinCondition() {
+            for (const coordStr of validCells) {
+                if (gameState[coordStr] !== goalState[coordStr]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        
+        // Helper function to handle both mouse and touch start events
+        function handleStart(e) {
+            // Prevent default behavior for touch events to avoid scrolling
+            if (e.type === 'touchstart') {
+                e.preventDefault();
+            }
+            
+            const rect = canvas.getBoundingClientRect();
+            // Get pointer position based on event type
+            const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+            const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+            const pointerX = clientX - rect.left;
+            const pointerY = clientY - rect.top;
+            
+            // Get the logical coordinates
+            const {x, y} = canvasPosToCoord(pointerX, pointerY);
+            const coordStr = `${x},${y}`;
+            
+            // Check if a knight was clicked/touched
+            if (validCells.has(coordStr) && gameState[coordStr] > 0) {
+                isDragging = true;
+                selectedPiece = {
+                    x: x,
+                    y: y,
+                    type: gameState[coordStr],
+                    canvasX: pointerX,
+                    canvasY: pointerY
+                };
+                startX = pointerX;
+                startY = pointerY;
+                startCoord = coordStr;
+                
+                // Get valid moves for the selected piece
+                validMoves = getValidMoves(x, y);
+                
+                // Redraw the board with highlighted valid moves
+                drawBoard();
+            }
+        }
+        
+        // Helper function to handle both mouse and touch move events
+        function handleMove(e) {
+            if (isDragging && selectedPiece) {
+                // Prevent default behavior for touch events to avoid scrolling
+                if (e.type === 'touchmove') {
+                    e.preventDefault();
+                }
+                
+                const rect = canvas.getBoundingClientRect();
+                // Get pointer position based on event type
+                const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+                selectedPiece.canvasX = clientX - rect.left;
+                selectedPiece.canvasY = clientY - rect.top;
+                
+                // Redraw the board
+                drawBoard();
+            }
+        }
+        
+        // Helper function to handle both mouse and touch end events
+        function handleEnd(e) {
+            if (isDragging && selectedPiece) {
+                const rect = canvas.getBoundingClientRect();
+                // Get pointer position based on event type
+                // For touchend, we need to use changedTouches since the touch has ended
+                const clientX = e.type === 'touchend' ? e.changedTouches[0].clientX : e.clientX;
+                const clientY = e.type === 'touchend' ? e.changedTouches[0].clientY : e.clientY;
+                const pointerX = clientX - rect.left;
+                const pointerY = clientY - rect.top;
+                
+                // Get the logical coordinates
+                const {x, y} = canvasPosToCoord(pointerX, pointerY);
+                const coordStr = `${x},${y}`;
+                
+                // Check if the move is valid
+                const isValidMove = validMoves.some(move => move.x === x && move.y === y);
+                
+                if (isValidMove) {
+                    // Move the piece
+                    gameState[startCoord] = 0;
+                    gameState[coordStr] = selectedPiece.type;
+                    
+                    // Check win condition
+                    if (checkWinCondition()) {
+                        messageEl.textContent = 'Congratulations! You solved the puzzle!';
+                        messageEl.style.color = 'green';
+                    }
+                }
+                
+                // Reset drag state
+                isDragging = false;
+                selectedPiece = null;
+                validMoves = [];
+                
+                // Redraw the board
+                drawBoard();
+            }
+        }
+        
+        // Add mouse event listeners
+        canvas.addEventListener('mousedown', handleStart);
+        canvas.addEventListener('mousemove', handleMove);
+        canvas.addEventListener('mouseup', handleEnd);
+        
+        // Add touch event listeners
+        canvas.addEventListener('touchstart', handleStart, { passive: false });
+        canvas.addEventListener('touchmove', handleMove, { passive: false });
+        canvas.addEventListener('touchend', handleEnd);
+        
+        // Reset button event handler
+        resetBtn.addEventListener('click', resetGame);
+        
+        // Initialize the game when the page loads
+        window.onload = function() {
+            resetGame();
+        };
+        
+        // Handle window resize to maintain proper display
+        window.addEventListener('resize', () => {
+            drawBoard();
+        });
+    </script>
+</body>
+</html>

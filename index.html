@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-YBNL300QTY"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-YBNL300QTY');
+</script>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -12,6 +21,13 @@
         body {
             background-color: black;
         }
+
+        main {
+            max-width: 58rem;
+            padding: 2rem;
+            margin: auto;
+        }
+
         figure {
             display: inline-block;
             margin: 30px;
@@ -26,11 +42,12 @@
     </style>
 </head>
 <body>
-    <!-- <img width=100% height=100% src="roots6-5.png" /> -->
-    <figure>
-    <img src="roots24.png">
-    <figcaption>roots of all 2<sup>25</sup> polynomials with coefficients ±1 and deg &lt; 25</figcaption>
-    </figure>
-
+    <main>
+        <img width=100% height=100% src="roots6-5.png" />
+        <!-- <figure>
+        <img src="roots24.png">
+        <figcaption>roots of all 2<sup>25</sup> polynomials with coefficients ±1 and deg &lt; 25</figcaption>
+        </figure> -->
+    </main>
 </body>
 </html>
