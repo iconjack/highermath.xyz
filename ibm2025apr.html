@@ -5,7 +5,7 @@
   <title>IBM Ponder This April 2025</title>
   <style>
     :root {
-      --value-font-size: 14px;
+      --value-font-size: 18px;
       --star-font-size: 18px;
     }
     
@@ -19,7 +19,7 @@
     #top-section {
       display: flex;
       align-items: flex-start;
-      margin: 10px 0; /* Add margin top and bottom */
+      margin: 25px 0; /* 25px margin top and bottom */
     }
     
     /* Responsive layout for smaller screens */
@@ -90,13 +90,15 @@
       background-color: #00900020;
       border: 1px solid #aaa;
       border-radius: 4px;
-      padding: 8px;
-      white-space: pre-wrap;
-      word-wrap: break-word;
+      padding: 2px 4px; /* Reduced padding */
+      white-space: normal; /* Use normal whitespace handling */
+      word-break: break-all; /* Break words at any character to ensure proper wrapping */
       margin-top: 20px;
-      min-width: 150px;
+      width: 150px; /* Fixed width matching scoreboard's min-width */
+      box-sizing: border-box; /* Include padding in width calculation */
       max-height: 200px;
       overflow-y: auto;
+      overflow-x: hidden; /* Prevent horizontal scrolling */
     }
   </style>
 </head>
@@ -117,7 +119,7 @@
       <button id="toggle-grid-button">Switch to Grid 2</button><br>
       <button id="undo-button">UNDO</button>
       <button id="reset-button">RESET</button>
-      <div id="version-info" style="font-size: 10px; margin-top: 8px; color: #777;">Version: 2:25P April 11 2025</div>
+      <div id="version-info" style="font-size: 10px; margin-top: 8px; color: #777;">Version: 3:50P April 11 2025</div>
     </div>
     
     <!-- Move history now below buttons on right side -->
@@ -266,7 +268,7 @@ function adjustCanvasAndLayoutForGrid(grid) {
   
   // Calculate grid height based on viewport height minus margins
   const viewportHeight = window.innerHeight;
-  const gridHeight = viewportHeight - 20; // 10px margin top and bottom
+  const gridHeight = viewportHeight - 50; // 25px margin top and bottom
   
   // Calculate cell size based on grid dimensions (ensures square grid)
   cellSize = gridHeight / rows;
@@ -412,7 +414,8 @@ function renderGameState(state) {
       // if val != 0, draw it
       if (val !== 0) {
         ctx.fillStyle = "#000000";
-        ctx.font = `var(--value-font-size, ${Math.max(10, Math.floor(cellSize * 0.5))}px) monospace`;
+        // Use direct size value rather than CSS variable since canvas doesn't parse CSS vars
+        ctx.font = `${Math.max(18, Math.floor(cellSize * 0.50))}px monospace`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(val, c * cellSize + cellSize/2, r * cellSize + cellSize/2);
@@ -421,7 +424,8 @@ function renderGameState(state) {
       // Add a star to player's position
       if (r === state.playerPos.row && c === state.playerPos.col) {
         ctx.fillStyle = "#000000";
-        ctx.font = `var(--star-font-size, ${Math.max(14, Math.floor(cellSize * 0.6))}px) sans-serif`;
+        // Direct size for star as well
+        ctx.font = `${Math.max(18, Math.floor(cellSize * 0.7))}px sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText("★", c * cellSize + cellSize/2, r * cellSize + cellSize/2);
