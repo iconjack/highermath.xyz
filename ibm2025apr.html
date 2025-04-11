@@ -2,56 +2,150 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Grid Puzzle with Undo/Reset + Highlighting</title>
+  <title>IBM Ponder This April 2025</title>
   <style>
+    :root {
+      --value-font-size: 14px;
+      --star-font-size: 18px;
+    }
+    
     body {
       font-family: sans-serif;
-      margin: 20px;
+      margin: 0 20px; /* Horizontal margins only, vertical controlled by grid */
+      padding: 0;
     }
-    #gameCanvas {
+
+    /* Container for canvas (left) and scoreboard+buttons (right) */
+    #top-section {
+      display: flex;
+      align-items: flex-start;
+      margin: 10px 0; /* Add margin top and bottom */
+    }
+    
+    /* Responsive layout for smaller screens */
+    @media (max-width: 768px) {
+      #top-section {
+        flex-direction: column;
+      }
+      #right-side {
+        margin-left: 0;
+        margin-top: 10px;
+      }
+    }
+
+    #game-canvas {
       border: 1px solid #000;
-      display: block;
-      margin-bottom: 10px;
       cursor: pointer;
+      /* Width/height set dynamically by JS */
+      flex-shrink: 0; /* Prevent canvas from shrinking in flex layout */
     }
-    #scoreStep, #moveHistory {
-      margin-top: 5px;
+
+    /* Right side container for scoreboard + buttons */
+    #right-side {
+      display: flex;
+      flex-direction: column;
+      margin-left: 10px;
     }
-    .button-container {
-      margin-top: 10px;
+
+    #scoreboard {
+      background-color: #fafad2; /* Light golden style */
+      border: 2px solid #000;
+      border-radius: 8px;
+      padding: 20px 10px; /* Increased vertical padding to make it taller */
+      min-width: 150px;
+    }
+    /* Monospace lines for score & steps */
+    #score-line,
+    #steps-line {
+      font-family: monospace;
+      font-size: 22px; /* Increased font size by ~40% */
+      margin-bottom: 15px; /* Increased vertical spacing between items */
+    }
+
+    /* Button container below scoreboard */
+    #button-container {
+      margin-top: 20px; /* Increase space between scoreboard and buttons */
     }
     button {
-      margin-right: 10px;
+      margin-right: 5px;
+      margin-bottom: 5px;
+    }
+    #undo-button {
+      color: white;
+      background-color: rgba(0, 0, 255, 0.9);
+      font-size: 150%;
+    }
+    #reset-button {
+      color: white;
+      background-color: rgba(255, 0, 0, 0.9);
+      font-size: 150%;
+    }
+    #toggle-grid-button {
+      background-color: rgba(128, 0, 128, 0.2);
+      font-size: 150%;
+    }
+
+    /* Move history on the right side */
+    #move-history-container {
+      background-color: #00900020;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+      padding: 8px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      margin-top: 20px;
+      min-width: 150px;
+      max-height: 200px;
+      overflow-y: auto;
     }
   </style>
 </head>
 <body>
 
-<canvas id="gameCanvas" width="600" height="600"></canvas>
+<div id="top-section">
+  <!-- Canvas on the left -->
+  <canvas id="game-canvas"></canvas>
 
-<div id="info">
-  <div id="scoreStep"></div>
-  <div id="moveHistory"></div>
-</div>
+  <!-- Right side: scoreboard + buttons + move history -->
+  <div id="right-side">
+    <div id="scoreboard">
+      <div id="score-line"></div>
+      <div id="steps-line"></div>
+    </div>
 
-<div class="button-container">
-  <button id="undoBtn">Undo</button>
-  <button id="resetBtn">Reset</button>
+    <div id="button-container">
+      <button id="toggle-grid-button">Switch to Grid 2</button><br>
+      <button id="undo-button">UNDO</button>
+      <button id="reset-button">RESET</button>
+      <div id="version-info" style="font-size: 10px; margin-top: 8px; color: #777;">Version: 2:25P April 11 2025</div>
+    </div>
+    
+    <!-- Move history now below buttons on right side -->
+    <div id="move-history-container">
+      <span id="move-history"></span>
+    </div>
+  </div>
 </div>
 
 <script>
 /*
-  Grid Puzzle with:
-  - BFS pathfinding only through 0-value squares (except final square).
-  - Destination square must satisfy v^2 <= current score.
-  - Score increases by v when we move onto square v.
-  - Visited squares tracked.
-  - Undo and Reset.
-  - Highlight in green any squares that can be reached (via 0-cells) and satisfy v^2 <= score.
+  Grid Puzzle with BFS pathfinding,
+  v^2 <= current score check,
+  movement only through 0-valued squares (except final),
+  visited squares highlighted,
+  undo, reset,
+  toggle button for switching between two grids,
+  scoreboard on the right with Score & Steps in monospace,
+  buttons on the right below the scoreboard,
+  move history at the bottom.
+
+  BFS Reference:
+  T.H. Cormen, C.E. Leiserson, R.L. Rivest, and C. Stein (2009).
+  Introduction to Algorithms (3rd ed.). MIT Press.
 */
 
-// ----------------------- Grid Definition -----------------------
-const initialGrid = [
+// ----------------------- Define the Two Grids -----------------------
+const grid1 = [
 [ 0,  0,  1,  5,  1,  0,  0,  0,  0,  0,  1, 19,  0,  7,  4,  2,  7, 12,  7,  1],
 [ 2,  6,  0,  0,  1,  8,  0,  8,  1,  2,  1,  0,  8,  9,  1,  7, 10, 13, 10,  6],
 [ 4, 11,  6,  7,  5,  5, 14,  1, 12,  1,  0,  2,  0,  2,  2,  5,  1, 10,  0, 14],
@@ -74,34 +168,68 @@ const initialGrid = [
 [12, 10, 11,  2,  5,  8, 11,  7, 16, 12,  0, 14, 10,  5,  9,  0, 15,  4, 11,  3]
 ];
 
-// ----------------------- Global Setup -----------------------
-const canvas = document.getElementById("gameCanvas");
+const grid2 = [
+[ 0,  1,  0,  0,  0,  5, 16,  8, 15,  4,  5,  5, 17, 17,  7, 11, 18,  4, 16, 15,  9, 17,  1,  3, 19,  6,  4, 16,  3,  7],
+[ 6,  3, 13, 11,  1,  5, 10, 18,  8, 18,  8,  8,  3, 10, 18,  4,  2,  8,  3,  1, 11, 12, 11, 15, 12,  8, 14,  5,  4,  9],
+[ 9,  0, 15,  4,  1, 11,  1, 11, 17,  8,  4,  6,  4, 12, 16, 19,  9,  8,  4,  2, 18, 12,  1,  4,  4, 10, 10,  4,  9,  2],
+[10, 10,  2,  9,  1, 19, 19, 16, 19, 18,  2,  4, 17,  6,  8,  1, 14,  9, 13,  4,  1,  4, 10,  2, 11,  2,  7,  8, 10, 15],
+[11,  6, 14,  1,  0,  8,  4,  9,  3, 16,  6,  6, 14,  9,  5, 19, 13,  5,  5,  0, 17, 18,  8, 17,  6,  4,  5, 17,  5, 15],
+[ 0,  1,  0,  0,  7,  1,  8,  0,  4,  3,  3,  5, 10, 16,  2,  9, 18, 17, 17,  6, 14, 15, 13, 12,  1,  8, 15,  1,  9,  1],
+[ 0,  1,  1,  0, 19,  4,  1,  0, 13,  4,  4,  6,  3, 11, 11,  1, 19, 17, 12,  7, 16, 17,  0, 18,  0, 14, 17, 18, 17, 18],
+[16, 14,  5,  1,  3,  0, 18, 12, 15,  7,  2,  0,  2,  2,  8, 13,  3,  9, 13, 13, 18,  3,  1, 12, 18, 19,  1,  6, 16,  0],
+[ 7, 13, 15,  9,  0,  1,  4, 15,  8,  3, 19, 12,  4,  0,  2,  1, 11, 19,  6,  3,  0, 14,  5, 15,  7,  4,  3, 15, 10, 15],
+[19, 16, 11,  8,  3,  2, 10, 13, 10, 14, 11, 12, 10, 18,  6,  2,  7,  9, 11, 10,  4, 14, 10,  6, 11,  4, 12,  5, 17, 10],
+[ 9,  0, 10, 19, 19, 11, 14, 19, 17,  3,  4,  8, 11,  4,  3,  6,  8, 12,  4,  8,  4,  3, 16, 10,  4, 10, 12, 10, 19,  0],
+[18, 17,  1, 17, 19,  5,  3, 10, 10, 19, 17,  6,  6, 14,  3,  2,  8,  5,  1,  2,  8, 10,  7,  4, 18, 10,  5,  3,  9,  6],
+[10, 16,  0, 17, 11, 10, 14,  1, 11,  1,  2, 14, 16,  4,  8,  2, 10,  2,  8,  8, 18, 12, 18, 13, 18,  1, 17, 18,  8,  2],
+[ 2, 11,  8, 11, 12, 15,  0,  5,  8,  3,  4,  6,  6,  7,  6, 15,  7,  7, 13, 18, 13, 12, 14,  9, 15,  0, 15,  8,  1,  7],
+[ 2,  6, 17, 14,  5, 14,  0,  8,  1, 11, 13, 13, 19, 13,  5,  1,  8,  9, 18,  5,  1, 16, 14, 11,  9,  2, 12, 18, 10, 19],
+[15,  2, 15, 17,  8,  5, 11, 18, 16, 10,  7,  1, 17, 18, 19,  9,  4, 13, 12,  6,  3,  2,  4,  5,  0, 13, 13, 17, 19, 12],
+[17,  4,  4, 17,  8, 14,  6, 12, 18, 14, 13,  7, 17,  5, 19, 18,  9, 11, 11, 10,  6, 17, 19,  6, 13, 19,  7,  0, 14,  5],
+[ 8,  9, 10,  2, 19,  3,  7, 10,  9, 14, 16,  3,  6,  4,  1, 15, 13,  8,  5,  0, 14,  8,  6,  0,  1,  3, 14,  1, 13, 10],
+[12,  3, 10, 18,  5, 19, 17, 16,  5, 12, 14, 19,  6, 13, 15,  3,  1, 15, 15,  4, 10,  9, 12,  2, 19,  3, 10, 13, 12,  2],
+[19, 18, 17, 19,  2, 18, 16,  5,  6,  4, 12, 10,  0,  1,  5, 12, 10, 18,  3,  0,  3, 12, 14,  2, 16, 13,  9, 15, 10, 15],
+[17,  5, 19, 16, 14,  6,  2, 15,  9, 14, 19, 15,  7, 15, 16,  6, 12,  1,  8, 12,  2, 14, 12, 18,  4,  4,  4, 12, 12, 17],
+[ 6, 12,  7, 17,  0, 11, 17, 11,  5, 12, 13,  6,  4, 13, 15, 16,  9, 16, 15,  3, 13, 11,  3, 17, 14,  9,  5,  5,  5, 12],
+[ 3,  0,  4, 15, 16,  4, 17,  2,  2, 16,  0,  1,  7,  4,  3,  0,  4,  2,  9, 13, 13,  4, 15, 10, 16,  0,  1,  5,  1,  2],
+[ 6,  1,  9,  6,  9,  9,  8, 18,  2,  5,  2,  9, 19,  0, 12,  7,  0, 17,  4,  3, 19, 10, 12, 14, 10,  8,  6,  6, 10, 19],
+[ 6, 11, 13,  2, 17, 11,  3,  1, 18, 13, 12,  0, 11,  7,  2, 12,  9,  3, 13,  8,  2,  1, 17, 19, 11, 19,  5,  0,  2, 15],
+[13, 19, 12, 17,  9, 18, 13,  9,  1, 12,  6,  9, 15, 13,  9,  3,  4,  4,  0, 15, 15,  4, 16,  9, 16, 13,  1, 13,  4,  6],
+[17,  5, 11,  3,  3, 15,  9, 16,  8,  1, 15, 14,  9, 12, 13,  8, 17,  1, 16,  7, 15, 17, 18,  8, 11, 16, 19, 14,  7,  8],
+[ 6, 10, 18, 16,  4, 10,  2, 14,  6,  2,  1,  1, 18,  0,  6, 17,  6, 15, 17,  0,  5, 13, 11,  4,  8, 10,  8,  1, 10, 13],
+[13,  0,  3,  2,  9, 14,  3,  5, 14, 11,  4, 13,  0,  8,  5, 14, 14,  8, 19,  7, 14, 10, 16, 14,  8, 19, 19,  2,  6, 19],
+[ 5,  3,  4,  5, 10, 19,  2,  5,  8, 10,  9,  6, 11,  4,  4, 12, 10, 15, 17, 15,  8,  9,  5, 19, 14, 16, 12, 16, 16,  5]
+];
+
+// Put both grids in an array
+const grids = [grid1, grid2];
+
+let currentGridIndex = 0; // Start with grid1
+
+// Canvas & scoreboard references
+const canvas = document.getElementById("game-canvas");
 const ctx = canvas.getContext("2d");
+const scoreLine = document.getElementById("score-line");
+const stepsLine = document.getElementById("steps-line");
+const moveHistoryContainer = document.getElementById("move-history-container");
 
-let rows = initialGrid.length;
-let cols = initialGrid[0].length;
-
-// For 20x20, each cell ~ 30px => 600x600 canvas
-const cellSize = 30;
-canvas.width = cols * cellSize;
-canvas.height = rows * cellSize;
-
-// We'll store previous states for undo
 let stateStack = [];
 
-// We'll store an initialState object to reset to
+/* A "state" has:
+   {
+     grid: 2D array of numbers,
+     playerPos: { row, col },
+     score: number,
+     steps: number,
+     moveHistory: string,
+     visited: Set of "row-col"
+   }
+*/
 let initialState = null;
-
-// The "currentState" object has:
-// {
-//   grid: 2D array of numbers,
-//   playerPos: {row, col},
-//   score: number,
-//   steps: number,
-//   moveHistory: string,
-//   visited: Set of "row-col" strings
-// }
 let currentState = null;
+
+// Variable cell size calculated based on viewport height
+let cellSize;
 
 // ----------------------- Utility Functions -----------------------
 function cloneGrid(grid) {
@@ -119,12 +247,11 @@ function cloneState(state) {
   };
 }
 
-function createInitialState() {
-  const initVisited = new Set();
-  // Mark top-left visited
-  initVisited.add("0-0");
+function createInitialState(chosenGrid) {
+  const initVisited = new Set(["0-0"]); // top-left visited
+
   return {
-    grid: cloneGrid(initialGrid),
+    grid: cloneGrid(chosenGrid),
     playerPos: { row: 0, col: 0 },
     score: 1,
     steps: 0,
@@ -133,13 +260,37 @@ function createInitialState() {
   };
 }
 
+function adjustCanvasAndLayoutForGrid(grid) {
+  const rows = grid.length;
+  const cols = grid[0].length;
+  
+  // Calculate grid height based on viewport height minus margins
+  const viewportHeight = window.innerHeight;
+  const gridHeight = viewportHeight - 20; // 10px margin top and bottom
+  
+  // Calculate cell size based on grid dimensions (ensures square grid)
+  cellSize = gridHeight / rows;
+  
+  // Ensure minimum cell size for usability
+  const minCellSize = 10;
+  if (cellSize < minCellSize) {
+    cellSize = minCellSize;
+  }
+  
+  // Set canvas dimensions
+  canvas.width = cols * cellSize;
+  canvas.height = rows * cellSize;
+  
+  // Adjust font sizes for cell values based on cell size
+  const valueFontSize = Math.max(10, Math.floor(cellSize * 0.5));
+  const starFontSize = Math.max(14, Math.floor(cellSize * 0.6));
+  document.documentElement.style.setProperty('--value-font-size', `${valueFontSize}px`);
+  document.documentElement.style.setProperty('--star-font-size', `${starFontSize}px`);
+}
+
 /**
- * BFS to find the shortest path from start to end through 0-valued cells,
- * or end cell if it is the target. Returns direction codes or null if no path.
- *
- * Reference:
- * T.H. Cormen, C.E. Leiserson, R.L. Rivest, and C. Stein (2009).
- * Introduction to Algorithms (3rd ed.). MIT Press.
+ * BFS to find shortest path from start to end through 0-valued squares.
+ * Return array of direction codes or null if no path.
  */
 function bfsShortestPath(grid, start, end) {
   const queue = [];
@@ -163,9 +314,8 @@ function bfsShortestPath(grid, start, end) {
     for (let d of directions) {
       const nr = current.row + d.r;
       const nc = current.col + d.c;
-      if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+      if (nr >= 0 && nr < grid.length && nc >= 0 && nc < grid[0].length) {
         const isDestination = (nr === end.row && nc === end.col);
-        // We can move through squares that are 0, or if it's the end itself
         if (!visited.has(`${nr}-${nc}`) && (grid[nr][nc] === 0 || isDestination)) {
           visited.add(`${nr}-${nc}`);
           queue.push({
@@ -177,49 +327,42 @@ function bfsShortestPath(grid, start, end) {
       }
     }
   }
-
-  return null; // no path found
+  return null;
 }
 
 /**
- * Compute which squares should be highlighted in green as possible destinations.
- * We do a BFS from the player's position, expanding only through 0-valued squares.
- * When we see a non-zero neighbor that satisfies v^2 <= score, we mark it as "highlightable",
- * but do not continue BFS from that neighbor.
+ * Compute which squares are valid destinations to highlight in green.
+ * BFS from player position through 0-cells, marking neighbors that have v>0, v^2<=score.
  */
 function computeHighlightable(state) {
   const { grid, playerPos, score } = state;
+  const rows = grid.length;
+  const cols = grid[0].length;
 
-  // highlight[r][c] => whether this is a valid destination
   const highlight = Array.from({ length: rows }, () => Array(cols).fill(false));
-  // visited[r][c] => BFS visited for traversing 0-valued cells
   const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
 
   const queue = [];
   queue.push({ row: playerPos.row, col: playerPos.col });
   visited[playerPos.row][playerPos.col] = true;
 
-  // BFS
+  const directions = [
+    { r: -1, c: 0 },
+    { r: 1,  c: 0 },
+    { r: 0,  c: -1 },
+    { r: 0,  c: 1 }
+  ];
+
   while (queue.length > 0) {
     const { row, col } = queue.shift();
-
-    // Explore neighbors
-    const directions = [
-      { r: -1, c: 0 },
-      { r: 1,  c: 0 },
-      { r: 0,  c: -1 },
-      { r: 0,  c: 1 }
-    ];
     for (let d of directions) {
       const nr = row + d.r;
       const nc = col + d.c;
       if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !visited[nr][nc]) {
-        // If neighbor is 0, we can continue BFS
         if (grid[nr][nc] === 0) {
           visited[nr][nc] = true;
           queue.push({ row: nr, col: nc });
         } else {
-          // If it's non-zero, check if it's a valid final square
           const val = grid[nr][nc];
           if (val > 0 && val * val <= score) {
             highlight[nr][nc] = true;
@@ -228,33 +371,33 @@ function computeHighlightable(state) {
       }
     }
   }
-
   return highlight;
 }
 
 /**
- * Render the game state, including highlights for legal destinations.
+ * Render the current state onto the canvas.
  */
 function renderGameState(state) {
+  const rows = state.grid.length;
+  const cols = state.grid[0].length;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Which squares should be green?
   const highlight = computeHighlightable(state);
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      let val = state.grid[r][c];
-      let color = "#FFFFFF"; // default
+      const val = state.grid[r][c];
+      let color = "#FFFFFF";
 
-      // Player's position => gold
+      // player's position => gold
       if (r === state.playerPos.row && c === state.playerPos.col) {
         color = "#FFD700";
       }
-      // Visited squares => light grey
+      // visited => light grey
       else if (state.visited.has(`${r}-${c}`)) {
         color = "#EEEEEE";
       }
-      // If highlight[r][c], then color is greenish
+      // highlight => green
       if (highlight[r][c]) {
         color = "#A0FFA0";
       }
@@ -262,58 +405,69 @@ function renderGameState(state) {
       ctx.fillStyle = color;
       ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
 
-      // Border
+      // border
       ctx.strokeStyle = "#000000";
       ctx.strokeRect(c * cellSize, r * cellSize, cellSize, cellSize);
 
-      // Value
-      ctx.fillStyle = "#000000";
-      ctx.font = "14px Arial";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(val, c * cellSize + cellSize / 2, r * cellSize + cellSize / 2);
+      // if val != 0, draw it
+      if (val !== 0) {
+        ctx.fillStyle = "#000000";
+        ctx.font = `var(--value-font-size, ${Math.max(10, Math.floor(cellSize * 0.5))}px) monospace`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(val, c * cellSize + cellSize/2, r * cellSize + cellSize/2);
+      }
+      
+      // Add a star to player's position
+      if (r === state.playerPos.row && c === state.playerPos.col) {
+        ctx.fillStyle = "#000000";
+        ctx.font = `var(--star-font-size, ${Math.max(14, Math.floor(cellSize * 0.6))}px) sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("★", c * cellSize + cellSize/2, r * cellSize + cellSize/2);
+      }
     }
   }
 
-  // Update info displays
-  document.getElementById("scoreStep").textContent =
-    `Score: ${state.score} | Steps: ${state.steps}`;
-  document.getElementById("moveHistory").textContent =
-    `Moves: ${state.moveHistory}`;
+  // Update Score & Steps in monospace
+  scoreLine.textContent = `Score: ${state.score}`;
+  stepsLine.textContent = `Steps: ${state.steps}`;
+
+  // Move history
+  document.getElementById("move-history").textContent = state.moveHistory;
 }
 
 /**
  * Handle canvas clicks => attempt to move if valid.
  */
-function handleCanvasClick(event) {
+function handleCanvasClick(e) {
   const rect = canvas.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
 
-  const c = Math.floor(x / cellSize);
   const r = Math.floor(y / cellSize);
+  const c = Math.floor(x / cellSize);
 
-  if (r < 0 || r >= rows || c < 0 || c >= cols) return;
+  const { grid, playerPos, score } = currentState;
+  if (r < 0 || r >= grid.length || c < 0 || c >= grid[0].length) return;
 
-  const val = currentState.grid[r][c];
-  if (val === 0) return;   // not a destination
-  if (val * val > currentState.score) return; // not allowed
+  const val = grid[r][c];
+  // must be >0 and v^2 <= score
+  if (val === 0 || val*val > score) return;
 
-  // BFS path from player's position to (r, c)
-  const pathCodes = bfsShortestPath(currentState.grid, currentState.playerPos, { row: r, col: c });
+  // BFS path
+  const pathCodes = bfsShortestPath(grid, playerPos, { row: r, col: c });
   if (!pathCodes) return; // unreachable
 
-  // If reachable, push current state onto stack for undo
+  // push state for undo
   stateStack.push(cloneState(currentState));
 
-  // Update steps
   currentState.steps += pathCodes.length;
-  // Update move history
   currentState.moveHistory += pathCodes.join("");
 
-  // Mark visited squares along the path
-  let cr = currentState.playerPos.row;
-  let cc = currentState.playerPos.col;
+  // Mark visited along the path
+  let cr = playerPos.row;
+  let cc = playerPos.col;
   for (let code of pathCodes) {
     if (code === "U") cr--;
     if (code === "D") cr++;
@@ -322,22 +476,14 @@ function handleCanvasClick(event) {
     currentState.visited.add(`${cr}-${cc}`);
   }
 
-  // End position
-  currentState.playerPos.row = r;
-  currentState.playerPos.col = c;
-
-  // Increase score
+  currentState.playerPos = { row: r, col: c };
   currentState.score += val;
-
-  // Set that cell to 0
   currentState.grid[r][c] = 0;
 
   renderGameState(currentState);
 }
 
-/**
- * Undo previous move
- */
+/** Undo the last move */
 function handleUndo() {
   if (stateStack.length > 0) {
     currentState = stateStack.pop();
@@ -345,24 +491,43 @@ function handleUndo() {
   }
 }
 
-/**
- * Reset to initial
- */
+/** Reset the current grid */
 function handleReset() {
   stateStack = [];
+  initialState = createInitialState(grids[currentGridIndex]);
   currentState = cloneState(initialState);
+  adjustCanvasAndLayoutForGrid(grids[currentGridIndex]);
   renderGameState(currentState);
+}
+
+/** Toggle between grid1 and grid2 */
+function handleToggleGrid() {
+  currentGridIndex = (currentGridIndex + 1) % 2;
+  const btn = document.getElementById("toggle-grid-button");
+  btn.textContent = (currentGridIndex === 0) ? "Switch to Grid 2" : "Switch to Grid 1";
+  handleReset();
 }
 
 // ----------------------- Initialization -----------------------
 window.onload = function() {
-  initialState = createInitialState();
+  // Start with Grid 1
+  initialState = createInitialState(grids[currentGridIndex]);
   currentState = cloneState(initialState);
+
+  adjustCanvasAndLayoutForGrid(grids[currentGridIndex]);
   renderGameState(currentState);
 
+  // Event listeners
   canvas.addEventListener("click", handleCanvasClick);
-  document.getElementById("undoBtn").addEventListener("click", handleUndo);
-  document.getElementById("resetBtn").addEventListener("click", handleReset);
+  document.getElementById("undo-button").addEventListener("click", handleUndo);
+  document.getElementById("reset-button").addEventListener("click", handleReset);
+  document.getElementById("toggle-grid-button").addEventListener("click", handleToggleGrid);
+  
+  // Handle window resize
+  window.addEventListener("resize", function() {
+    adjustCanvasAndLayoutForGrid(grids[currentGridIndex]);
+    renderGameState(currentState);
+  });
 };
 </script>
 
