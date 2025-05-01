@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Quintic Roots ↔ Coefficients Explorer</title>
+
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #f8f9fa;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+      touch-action: none;
+    }
+
+    #wrapper {
+      display: flex;
+      height: 100%;
+    }
+
+    .stage {
+      flex: 1 1 50%;
+      aspect-ratio: 1 / 1;        /* keep square */
+      position: relative;
+      border: 1px solid #888;
+      touch-action: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+
+    .caption {
+      position: absolute;
+      left: 6px;
+      top: 6px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .lbl {
+      pointer-events: none;
+      font-size: 11px;
+      fill: #fff;
+      dominant-baseline: middle;
+      text-anchor: middle;
+    }
+    
+    .point {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      touch-action: none;
+      cursor: pointer;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -khtml-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+    
+    .label {
+      position: absolute;
+      font-size: 11px;
+      color: white;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+  </style>
+
+  <!-- libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.js/3.2.4/svg.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/interactjs@1.10.17/dist/interact.min.js"></script>
+</head>
+<body>
+  <div id="wrapper">
+    <div id="root_stage" class="stage"><span class="caption">Roots</span></div>
+    <div id="coeff_stage" class="stage"><span class="caption">Coefficients</span></div>
+  </div>
+
+  <script>
+    // Prevent default touch behavior on the entire document
+    document.addEventListener('touchmove', function(e) {
+      if (e.target.classList.contains('point') || e.target.classList.contains('stage')) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+    
+    document.addEventListener('touchstart', function(e) {
+      if (e.target.classList.contains('point')) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+    
+    /*******************************************************************
+     *  Complex helpers                                                 *
+     *******************************************************************/
+    const c_add = (a, b) => [a[0] + b[0], a[1] + b[1]];
+    const c_sub = (a, b) => [a[0] - b[0], a[1] - b[1]];
+    const c_mul = (a, b) => [a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]];
+    const c_div = (a, b) => {
+      const d = b[0] * b[0] + b[1] * b[1];
+      return [
+        (a[0] * b[0] + a[1] * b[1]) / d,
+        (a[1] * b[0] - a[0] * b[1]) / d
+      ];
+    };
+    const c_mag = a => Math.hypot(a[0], a[1]);
+
+    /*******************************************************************
+     *  Plane factory  (axes, scaling)                                   *
+     *******************************************************************/
+    function create_plane (div_id, fixed_scale) {
+      const div     = document.getElementById(div_id);
+      const width   = div.clientWidth;
+      const height  = div.clientHeight;
+      const origin  = { x: width / 2, y: height / 2 };
+
+      // Create SVG for axes only
+      const draw = SVG().addTo('#' + div_id).size('100%', '100%');
+      
+      // Draw axes
+      draw.line(0, origin.y, width,  origin.y).stroke({ width: 1, color: '#555' });
+      draw.line(origin.x, 0, origin.x, height).stroke({ width: 1, color: '#555' });
+
+      const plane = {
+        draw,
+        origin,
+        scale: fixed_scale,
+        div_id,
+
+        to_px ([x, y]) {
+          return [ this.origin.x + x * this.scale, this.origin.y - y * this.scale ];
+        },
+
+        to_cplx ({ x, y }) {
+          return [ (x - this.origin.x) / this.scale, (this.origin.y - y) / this.scale ];
+        }
+      };
+
+      return plane;
+    }
+
+    /*******************************************************************
+     *  Polynomial ⇄ roots                                               *
+     *******************************************************************/
+    function poly_from_roots (roots) {
+      let coeffs = [[1, 0]];                       // leading 1
+
+      roots.forEach(r => {
+        const next = Array(coeffs.length + 1).fill().map(() => [0, 0]);
+        for (let i = 0; i < coeffs.length; ++i) {
+          next[i]     = c_add(next[i], coeffs[i]);
+          next[i + 1] = c_add(next[i + 1], c_mul([-r[0], -r[1]], coeffs[i]));
+        }
+        coeffs = next;
+      });
+
+      return coeffs.slice(1);                      // drop leading 1
+    }
+
+    function roots_from_coeffs (coeffs) {
+      const n           = coeffs.length;
+      const coeffs_full = [[1, 0], ...coeffs];
+
+      const eval_poly = z => {
+        let p = coeffs_full[0];
+        for (let i = 1; i < coeffs_full.length; ++i) {
+          p = c_add(c_mul(p, z), coeffs_full[i]);
+        }
+        return p;
+      };
+
+      const roots = Array.from({ length: n }, (_, k) => {
+        const t = (2 * Math.PI * k) / n;
+        return [Math.cos(t), Math.sin(t)];
+      });
+
+      for (let iter = 0; iter < 200; ++iter) {
+        let converged = true;
+        for (let i = 0; i < n; ++i) {
+          let denom = [1, 0];
+          for (let j = 0; j < n; ++j) if (i !== j) {
+            denom = c_mul(denom, c_sub(roots[i], roots[j]));
+          }
+          const delta = c_div(eval_poly(roots[i]), denom);
+          roots[i]    = c_sub(roots[i], delta);
+          if (c_mag(delta) > 1e-10) converged = false;
+        }
+        if (converged) break;
+      }
+      return roots;
+    }
+
+    /*******************************************************************
+     *  Clear points helper                                              *
+     *******************************************************************/
+    function clear_points(div_id) {
+      const div = document.getElementById(div_id);
+      const points = div.querySelectorAll('.point, .label');
+      points.forEach(point => div.removeChild(point));
+    }
+    
+    /*******************************************************************
+     *  Set‑up planes and data                                           *
+     *******************************************************************/
+    const DEGREE      = 5;
+    const root_plane  = create_plane('root_stage', 30); // Scale for -8 to +8 range
+    const coeff_plane = create_plane('coeff_stage', 4); // Scale for -60 to +60 range
+
+    const roots_list  = [];
+    const coeff_list  = [];
+
+    for (let i = 0; i < DEGREE; ++i) {
+      roots_list.push({
+        z: [Math.random() * 8 - 4, Math.random() * 8 - 4],
+        kind: 'root'
+      });
+    }
+
+    /*******************************************************************
+     *  Point factory                                                    *
+     *******************************************************************/
+    function make_point (obj, plane, color, label) {
+      const [cx, cy] = plane.to_px(obj.z);
+      const div_id = plane === root_plane ? 'root_stage' : 'coeff_stage';
+      const div = document.getElementById(div_id);
+      
+      // Create point element
+      obj.element = document.createElement('div');
+      obj.element.className = 'point';
+      obj.element.style.backgroundColor = color;
+      obj.element.style.left = cx + 'px';
+      obj.element.style.top = cy + 'px';
+      obj.element.setAttribute('data-x', 0);
+      obj.element.setAttribute('data-y', 0);
+      div.appendChild(obj.element);
+      
+      // Create label if needed
+      if (label !== undefined) {
+        obj.label = document.createElement('div');
+        obj.label.className = 'label';
+        obj.label.textContent = label;
+        obj.label.style.left = cx + 'px';
+        obj.label.style.top = cy + 'px';
+        div.appendChild(obj.label);
+      }
+      
+      // Set up interact.js
+      interact(obj.element).draggable({
+        inertia: false,
+        allowFrom: null,
+        ignoreFrom: null,
+        autoScroll: false,
+        modifiers: [
+          interact.modifiers.restrictRect({
+            restriction: div,
+            endOnly: false
+          })
+        ],
+        listeners: {
+          move(event) {
+            const target = event.target;
+            // Get current position from attributes
+            const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
+            const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+            
+            // Update element position
+            target.style.transform = `translate(${x}px, ${y}px)`;
+            
+            // Store the position
+            target.setAttribute('data-x', x);
+            target.setAttribute('data-y', y);
+            
+            // Update label position if it exists
+            if (obj.label) {
+              obj.label.style.transform = `translate(${x}px, ${y}px)`;
+            }
+            
+            // Calculate absolute position
+            const baseX = parseFloat(target.style.left.replace('px', ''));
+            const baseY = parseFloat(target.style.top.replace('px', ''));
+            const absX = baseX + x;
+            const absY = baseY + y;
+            
+            // Convert to complex coordinates
+            obj.z = plane.to_cplx({ x: absX, y: absY });
+            
+            // Update the other view
+            if (obj.kind === 'root') {
+              // Clear existing coefficient points
+              clear_points('coeff_stage');
+              
+              const new_coeffs = poly_from_roots(roots_list.map(r => r.z));
+              
+              for (let i = 0; i < DEGREE; ++i) {
+                if (!coeff_list[i]) {
+                  coeff_list[i] = { z: [0, 0], kind: 'coeff' };
+                }
+                coeff_list[i].z = new_coeffs[i];
+                
+                // Recreate the point
+                make_point(coeff_list[i], coeff_plane, 'green', (DEGREE - 1 - i).toString());
+              }
+            } else {
+              // If we're dragging coefficients, only update the roots
+              // Clear existing root points
+              clear_points('root_stage');
+              
+              const new_roots = roots_from_coeffs(coeff_list.map(c => c.z));
+              
+              for (let i = 0; i < DEGREE; ++i) {
+                roots_list[i].z = new_roots[i];
+                const shade = 120 + i * 25;
+                
+                // Recreate the point
+                make_point(roots_list[i], root_plane, `rgb(255, ${shade}, ${shade})`);
+              }
+            }
+            // Prevent any default browser behavior
+            if (event.srcEvent) {
+              event.srcEvent.preventDefault();
+              event.srcEvent.stopPropagation();
+            }
+            event.preventDefault();
+          }
+        }
+      });
+    }
+
+    // Create initial root points
+    roots_list.forEach((r, i) => {
+      const shade = 120 + i * 25;
+      make_point(r, root_plane, `rgb(255, ${shade}, ${shade})`);
+    });
+
+    /*******************************************************************
+     *  Update helpers                                                   *
+     *******************************************************************/
+    function update_coeffs () {
+      // Clear existing coefficient points
+      clear_points('coeff_stage');
+      
+      const new_coeffs = poly_from_roots(roots_list.map(r => r.z));
+
+      for (let i = 0; i < DEGREE; ++i) {
+        if (!coeff_list[i]) {
+          coeff_list[i] = { z: [0, 0], kind: 'coeff' };
+        }
+        coeff_list[i].z = new_coeffs[i];
+        
+        // Recreate the point
+        make_point(coeff_list[i], coeff_plane, 'green', (DEGREE - 1 - i).toString());
+      }
+    }
+
+    function update_roots () {
+      // Clear existing root points
+      clear_points('root_stage');
+      
+      const new_roots = roots_from_coeffs(coeff_list.map(c => c.z));
+      
+      for (let i = 0; i < DEGREE; ++i) {
+        roots_list[i].z = new_roots[i];
+        const shade = 120 + i * 25;
+        
+        // Recreate the point
+        make_point(roots_list[i], root_plane, `rgb(255, ${shade}, ${shade})`);
+      }
+    }
+
+    update_coeffs();            // initial coefficient placement
+
+    /*******************************************************************
+     *  Resize – simple reload                                           *
+     *******************************************************************/
+    window.addEventListener('resize', () => location.reload());
+  </script>
+</body>
+</html>
