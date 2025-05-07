@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>PWNED</title>
+  <!-- Chessboard.js default styles -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css" />
+  <!-- jQuery‑UI theme (needed for draggable pieces) -->
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.3/themes/base/jquery-ui.css" />
+  <style>
+    body  { font-family: sans-serif; margin: 20px; }
+    #board { width: 480px; max-width: 90vw; }
+  </style>
+</head>
+<body>
+  <h2>Play vs Stockfish</h2>
+  <div id="board"></div>
+
+  <!-- ========== 3rd‑party libraries (load once, in order) ========== -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://code.jquery.com/ui/1.13.3/jquery-ui.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+  <!-- ============================================================= -->
+
+  <script>
+    /* ---------------- USER‑TWEAKABLE SETTINGS ---------------- */
+    const HUMAN_COLOR  = 'white'; // 'white' | 'black'
+    const START_FEN    = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    // const START_FEN    = '4k3/pppppppp/pppppppp/pppppppp/pppppppp/8/PPPPPPPP/RNBQKBNR w KQ - 0 1';
+    const ENGINE_DEPTH = 6;      // Search depth each Stockfish move
+    const ENGINE_SKILL = 2;      // 0 (weak) … 20 (strong)
+    /* --------------------------------------------------------- */
+
+    // Fetch asm.js Stockfish, wrap in a Blob → Worker
+    async function createEngine () {
+      const url  = 'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.min.js';
+      const code = await (await fetch(url)).text();
+      return new Worker(URL.createObjectURL(new Blob([code], { type: 'application/javascript' })));
+    }
+
+    (async () => {
+      /* 1. Game state */
+      const game = new Chess(START_FEN);
+
+      /* 2. Visual board */
+      const board = Chessboard('board', {
+        position: START_FEN,
+        orientation: HUMAN_COLOR,
+        draggable: true,
+        pieceTheme: 'https://cdn.jsdelivr.net/gh/oakmac/chessboardjs/website/img/chesspieces/wikipedia/{piece}.png',
+        onDragStart: onDragStart,
+        onDrop: onDrop,
+        onSnapEnd: () => board.position(game.fen())
+      });
+
+      /* 3. Engine */
+      const engine      = await createEngine();
+      let   engineReady = false;
+
+      engine.onmessage = (e) => {
+        const line = typeof e === 'object' ? e.data : e;
+        if (line === 'uciok') {
+          engineReady = true;
+          maybeEngineMove();
+        } else if (line.startsWith('bestmove')) {
+          const [ , uci ] = line.split(' ');
+          applyEngineMove(uci);
+        }
+      };
+
+      engine.postMessage('uci');
+      engine.postMessage('setoption name Skill Level value ' + ENGINE_SKILL);
+      engine.postMessage('ucinewgame');
+
+      /* —— Drag helpers —— */
+      function onDragStart (source, piece) {
+        if (game.game_over()) return false;
+        const turn = game.turn() === 'w' ? 'white' : 'black';
+        if (turn !== HUMAN_COLOR) return false;              // engine to move
+        if (HUMAN_COLOR === 'white' && piece.startsWith('b')) return false;
+        if (HUMAN_COLOR === 'black' && piece.startsWith('w')) return false;
+      }
+
+      function onDrop (source, target) {
+        const p      = game.get(source);
+        const promo  = p?.type === 'p' && (target[1] === '8' || target[1] === '1');
+        const move   = game.move({ from: source, to: target, promotion: promo ? 'q' : undefined });
+        if (!move) return 'snapback';
+        maybeEngineMove();
+      }
+
+      /* —— Engine helpers —— */
+      function maybeEngineMove () {
+        if (!engineReady || game.game_over()) return;
+        if ((game.turn() === 'w' ? 'white' : 'black') === HUMAN_COLOR) return; // wait for player
+        engine.postMessage('position fen ' + game.fen());
+        engine.postMessage('go depth ' + ENGINE_DEPTH);
+      }
+
+      function applyEngineMove (uci) {
+        const move = game.move({
+          from: uci.slice(0,2),
+          to:   uci.slice(2,4),
+          promotion: uci.length === 5 ? uci[4] : undefined
+        });
+        if (move) board.position(game.fen());
+        maybeEngineMove();
+      }
+
+      // If player chose black, let engine open
+      if (HUMAN_COLOR === 'black') {
+        const t = setInterval(() => { if (engineReady) { clearInterval(t); maybeEngineMove(); } }, 30);
+      }
+    })();
+  </script>
+</body>
+</html>
