@@ -3,37 +3,44 @@
 <head>
   <meta charset="utf-8" />
   <title>PWNED</title>
+
   <!-- Chessboard.js default styles -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css" />
-  <!-- jQuery‑UI theme (needed for draggable pieces) -->
-  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.3/themes/base/jquery-ui.css" />
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css" />
+  <!-- jQuery-UI theme (needed for draggable pieces) -->
+  <link rel="stylesheet"
+        href="https://code.jquery.com/ui/1.13.3/themes/base/jquery-ui.css" />
+
   <style>
     body  { font-family: sans-serif; margin: 20px; }
-    /* #board { width: 480px; max-width: 90vw; } */
     #board { width: 640px; max-width: 90vw; }
-    h2 {  font-variant: small-caps; }
+    h2 { font-variant: small-caps; }
   </style>
 </head>
 <body>
   <h2>pwned</h2>
   <div id="board"></div>
 
-  <!-- ========== 3rd‑party libraries (load once, in order) ========== -->
+  <!-- may be order dependent  -->
+  
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://code.jquery.com/ui/1.13.3/jquery-ui.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
-  <!-- ============================================================= -->
 
   <script>
-    /* ---------------- USER‑TWEAKABLE SETTINGS ---------------- */
-    const HUMAN_COLOR  = 'white'; // 'white' | 'black'
+    const HUMAN_COLOR  = 'white';
     const START_FEN    = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-    // const START_FEN    = '4k3/pppppppp/pppppppp/pppppppp/pppppppp/8/PPPPPPPP/RNBQKBNR w KQ - 0 1';
-    // const START_FEN    = 'R7/k7/2K5/8/8/8/8/8 w - - 13 44';
-    const ENGINE_DEPTH = 6;      // Search depth each Stockfish move
+    const ENGINE_DEPTH = 6;
     const ENGINE_SKILL = 2;      // 0 (weak) … 20 (strong)
-    /* --------------------------------------------------------- */
+    const PIECES_URL = 'https://lichess.org/assets/piece/maestro/{piece}.svg';
+
+    (function preloadPieces () {
+      const pieceCodes = ['wK','wQ','wR','wB','wN','wP',
+                          'bK','bQ','bR','bB','bN','bP'];
+      const makeSrc = pc => PIECES_URL.replace('{piece}', pc);
+      pieceCodes.forEach(pc => { const img = new Image(); img.src = makeSrc(pc); });
+    })();
 
     // Fetch asm.js Stockfish, wrap in a Blob → Worker
     async function createEngine () {
@@ -51,8 +58,7 @@
         position: START_FEN,
         orientation: HUMAN_COLOR,
         draggable: true,
-        // pieceTheme: 'https://cdn.jsdelivr.net/gh/oakmac/chessboardjs/website/img/chesspieces/wikipedia/{piece}.png',
-        pieceTheme: 'https://lichess.org/assets/piece/maestro/{piece}.svg',
+        pieceTheme: PIECES_URL,
         onDragStart: onDragStart,
         onDrop: onDrop,
         onSnapEnd: () => board.position(game.fen())
