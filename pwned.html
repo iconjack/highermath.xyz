@@ -9,7 +9,8 @@
   <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.3/themes/base/jquery-ui.css" />
   <style>
     body  { font-family: sans-serif; margin: 20px; }
-    #board { width: 480px; max-width: 90vw; }
+    /* #board { width: 480px; max-width: 90vw; } */
+    #board { width: 640px; max-width: 90vw; }
     h2 {  font-variant: small-caps; }
   </style>
 </head>
@@ -27,8 +28,8 @@
   <script>
     /* ---------------- USER‑TWEAKABLE SETTINGS ---------------- */
     const HUMAN_COLOR  = 'white'; // 'white' | 'black'
-    const START_FEN    = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-    // const START_FEN    = '4k3/pppppppp/pppppppp/pppppppp/pppppppp/8/PPPPPPPP/RNBQKBNR w KQ - 0 1';
+    // const START_FEN    = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    const START_FEN    = '4k3/pppppppp/pppppppp/pppppppp/pppppppp/8/PPPPPPPP/RNBQKBNR w KQ - 0 1';
     const ENGINE_DEPTH = 6;      // Search depth each Stockfish move
     const ENGINE_SKILL = 2;      // 0 (weak) … 20 (strong)
     /* --------------------------------------------------------- */
@@ -52,7 +53,7 @@
         pieceTheme: 'https://cdn.jsdelivr.net/gh/oakmac/chessboardjs/website/img/chesspieces/wikipedia/{piece}.png',
         onDragStart: onDragStart,
         onDrop: onDrop,
-        onSnapEnd: () => board.position(game.fen(), true)
+        onSnapEnd: () => board.position(game.fen())
       });
 
       /* 3. Engine */
@@ -105,7 +106,7 @@
           to:   uci.slice(2,4),
           promotion: uci.length === 5 ? uci[4] : undefined
         });
-        if (move) board.position(game.fen(), true);
+        if (move) board.position(game.fen());
         maybeEngineMove();
       }
 
