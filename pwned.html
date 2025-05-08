@@ -28,8 +28,9 @@
   <script>
     /* ---------------- USER‑TWEAKABLE SETTINGS ---------------- */
     const HUMAN_COLOR  = 'white'; // 'white' | 'black'
-    // const START_FEN    = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-    const START_FEN    = '4k3/pppppppp/pppppppp/pppppppp/pppppppp/8/PPPPPPPP/RNBQKBNR w KQ - 0 1';
+    const START_FEN    = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    // const START_FEN    = '4k3/pppppppp/pppppppp/pppppppp/pppppppp/8/PPPPPPPP/RNBQKBNR w KQ - 0 1';
+    // const START_FEN    = 'R7/k7/2K5/8/8/8/8/8 w - - 13 44';
     const ENGINE_DEPTH = 6;      // Search depth each Stockfish move
     const ENGINE_SKILL = 2;      // 0 (weak) … 20 (strong)
     /* --------------------------------------------------------- */
@@ -50,7 +51,8 @@
         position: START_FEN,
         orientation: HUMAN_COLOR,
         draggable: true,
-        pieceTheme: 'https://cdn.jsdelivr.net/gh/oakmac/chessboardjs/website/img/chesspieces/wikipedia/{piece}.png',
+        // pieceTheme: 'https://cdn.jsdelivr.net/gh/oakmac/chessboardjs/website/img/chesspieces/wikipedia/{piece}.png',
+        pieceTheme: 'https://lichess.org/assets/piece/maestro/{piece}.svg',
         onDragStart: onDragStart,
         onDrop: onDrop,
         onSnapEnd: () => board.position(game.fen())
