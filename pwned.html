@@ -10,10 +10,11 @@
   <style>
     body  { font-family: sans-serif; margin: 20px; }
     #board { width: 480px; max-width: 90vw; }
+    h2 {  font-variant: small-caps; }
   </style>
 </head>
 <body>
-  <h2>Play vs Stockfish</h2>
+  <h2>pwned</h2>
   <div id="board"></div>
 
   <!-- ========== 3rd‑party libraries (load once, in order) ========== -->
@@ -51,7 +52,7 @@
         pieceTheme: 'https://cdn.jsdelivr.net/gh/oakmac/chessboardjs/website/img/chesspieces/wikipedia/{piece}.png',
         onDragStart: onDragStart,
         onDrop: onDrop,
-        onSnapEnd: () => board.position(game.fen())
+        onSnapEnd: () => board.position(game.fen(), true)
       });
 
       /* 3. Engine */
@@ -104,7 +105,7 @@
           to:   uci.slice(2,4),
           promotion: uci.length === 5 ? uci[4] : undefined
         });
-        if (move) board.position(game.fen());
+        if (move) board.position(game.fen(), true);
         maybeEngineMove();
       }
 
