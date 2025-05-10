@@ -25,12 +25,25 @@
     #version {
       font-size: small;
     }
+
+    #status {
+      color: darkorange;
+      width: 720px;
+      max-width: 90vw;
+      margin-top: 20px;
+      font-size: 64px;
+      font-weight: bold;
+      text-align: center;
+      letter-spacing: 2px;
+      height: 1.2em;              /* reserve space so layout doesn't jump */
+    }
   </style>
 </head>
 <body>
   <span id='title'>pwned</span>
   <span id='version'> v0.13</span>
   <div id="board"></div>
+  <div id="status"></div>
 
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://code.jquery.com/ui/1.13.3/jquery-ui.min.js"></script>
@@ -55,22 +68,6 @@
                           'bK','bQ','bR','bB','bN','bP'];
 
     /* -------- build one-time base-64 cache -------- */
-
-    //
-    //  When using chessboard.js for displaying the board, we give it a URL
-    //  to retrieve the piece images from. However, it will fetch these images
-    //  every time the board is updated. 
-    //
-    //  This is ok if the image host has the right cache settings, but many
-    //  do not. A work around is a poor-man's cash, achieved by loading all
-    //  the images into a list, because if the browswer sees a URL it's 
-    //  already storing somewhere, it won't reload.  However, this internal
-    //  cache can be emptied willy nilly.
-    //
-    //  The reliable fix is to take advantage of the fact that the pieceTheme
-    //  property of chessboard.js can also be a function  (in addition to a
-    //  template URL. 
-    //
 
     async function build_image_cache () {
       const cache = {};
@@ -102,16 +99,30 @@
       /* 1. game state */
       const game = new Chess(START_FEN);
 
+      function update_status () {
+        const $status = document.getElementById('status');
+
+        if (game.in_checkmate()) {
+          $status.textContent = 'CHECKMATE';
+        } else if (game.in_stalemate()) {
+          $status.textContent = 'STALEMATE';
+        } else {
+          $status.textContent = '';
+        }
+      }
+
       /* 2. visual board */
       const board = Chessboard('board', {
         position: START_FEN,
         orientation: HUMAN_COLOR,
         draggable: true,
-        pieceTheme: code => imgCache[code],   // ← data-URI source
+        pieceTheme: code => imgCache[code],   // ← data‑URI source
         onDragStart: onDragStart,
         onDrop: onDrop,
         onSnapEnd: () => board.position(game.fen())
       });
+
+      update_status();   // initial blank
 
       /* 3. engine */
       const engine      = await create_stockfish_engine();
@@ -119,7 +130,6 @@
 
       engine.onmessage = (e) => {
         const line = typeof e === 'object' ? e.data : e;
-        // console.log(line);
         if (line === 'uciok') {
           engineReady = true;
           maybeEngineMove();
@@ -151,10 +161,10 @@
         const move   = game.move({ from: source, to: target,
                                    promotion: promo ? 'q' : undefined });
         if (!move) return 'snapback';
+        update_status();
         maybeEngineMove();
       }
 
-      /* --- engine helpers --- */
       function maybeEngineMove() {
         if (!engineReady || game.game_over()) return;
         if ((game.turn() === 'w' ? 'white' : 'black') === HUMAN_COLOR) return;
@@ -169,6 +179,7 @@
           promotion: uci.length === 5 ? uci[4] : undefined
         });
         if (move) board.position(game.fen());
+        update_status();
         maybeEngineMove();
       }
 
