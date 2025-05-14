@@ -16,129 +16,161 @@
        max-width: 90vw; 
        margin-top: 10px;
     }
-    #board .white-1e1d7 { background:#eeffd2; }  /* light square  */
-    #board .black-3c85d { background:#769656; }  /* dark square   */
-    #title {
-      font-size: 20px;
-      font-variant: small-caps; 
+    #board .white-1e1d7 { background:#eeffd2; }
+    #board .black-3c85d { background:#769656; }
+    /* #board .white-1e1d7 { background:#D8BFD8; }
+    #board .black-3c85d { background:#4B0082; } */
+    #title      { font-size:20px; font-variant:small-caps; }
+    #version    { font-size:small; }
+    #status     {
+      color:darkorange; width:720px; max-width:90vw; margin-top:20px;
+      font-size:64px; font-weight:bold; text-align:center; letter-spacing:2px;
+      height:1.2em;
     }
-    #version {
-      font-size: small;
+    #move-assist-button {
+      font-size:28px; width:60px; height:42px; margin:16px 0;
+      cursor:pointer;
+      /* visibility: hidden; */
     }
-
-    #status {
-      color: darkorange;
-      width: 720px;
-      max-width: 90vw;
-      margin-top: 20px;
-      font-size: 64px;
-      font-weight: bold;
-      text-align: center;
-      letter-spacing: 2px;
-      height: 1.2em;              /* reserve space so layout doesn't jump */
-    }
-  </style>
+</style>
 </head>
 <body>
   <span id='title'>pwned</span>
-  <span id='version'> v0.1.8.7</span>
+  <span id='version'> v0.1.12.18</span>
   <div id="board"></div>
   <div id="status"></div>
+  <button id="move-assist-button">★</button>   <!-- ★ -->
 
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://code.jquery.com/ui/1.13.3/jquery-ui.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
   <script data-goatcounter="https://iconjack.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+
   <script>
     const HUMAN_COLOR  = 'white';
-    // const START_FEN    = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
     const START_FEN = '4k3/pppppppp/pppppppp/pppppppp/pppppppp/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-    const ENGINE_DEPTH = 8;
-    const ENGINE_SKILL = 7;
+    const ENGINE_DEPTH = 12;
+    const ENGINE_SKILL = 18;
+    const ASSIST_ENGINE_DEPTH = 15;
+    const ASSIST_ENGINE_SKILL = 20;
 
-    const piece_sets = Array();
-    piece_sets[1] = 'https://cdn.jsdelivr.net/gh/lichess-org/lila/public/piece/alpha/{piece}.svg';
-    piece_sets[2] = 'https://cdn.jsdelivr.net/gh/oakmac/chessboardjs/website/img/chesspieces/alpha/{piece}.png';
-    piece_sets[3] = 'https://lichess.org/assets/piece/maestro/{piece}.svg';
-    piece_sets[4] = 'https://cdn.jsdelivr.net/gh/oakmac/chessboardjs/website/img/chesspieces/wikipedia/{piece}.png';
-    const PIECES_URL = piece_sets[2];
+    const piece_sets = [];
 
-    const PIECE_CODES  = ['wK','wQ','wR','wB','wN','wP',
-                          'bK','bQ','bR','bB','bN','bP'];
+    const PIECE_CODES_U  = ['wK','wQ','wR','wB','wN','wP','bK','bQ','bR','bB','bN','bP'];
 
-    /* -------- build one-time base-64 cache -------- */
+    // Each of these entries consists of a 'U' or'L', along with a URL (get it?).
+    // The 'U' or 'L' indicates whether the pieces are referenced as, e.g. 'bR' or 'br'.
 
-    async function build_image_cache () {
+    piece_sets[1] = ['U', 'https://cdn.jsdelivr.net/gh/oakmac/chessboardjs/website/img/chesspieces/alpha/{piece}.png'];
+    piece_sets[2] = ['U', 'https://lichess.org/assets/piece/maestro/{piece}.svg'];
+    piece_sets[3] = ['U', 'https://cdn.jsdelivr.net/gh/oakmac/chessboardjs/website/img/chesspieces/wikipedia/{piece}.png'];
+    piece_sets[4] = ['U', 'https://github.com/lichess-org/lila/blob/master/public/piece/alpha/{piece}.svg'];
+    piece_sets[5] = ['U', 'https://cdn.jsdelivr.net/gh/oakmac/chessboardjs/website/img/chesspieces/uscf/{piece}.png'];
+    piece_sets[6] = ['L', 'https://raw.githubusercontent.com/pychess/pychess/refs/heads/master/pieces/alfonso/{piece}.svg'];
+    piece_sets[7] = ['L', 'https://raw.githubusercontent.com/pychess/pychess/refs/heads/master/pieces/california/{piece}.svg'];
+    piece_sets[8] = ['L', 'https://raw.githubusercontent.com/pychess/pychess/refs/heads/master/pieces/chessnut/{piece}.svg'];
+    piece_sets[9] = ['L', 'https://raw.githubusercontent.com/pychess/pychess/refs/heads/master/pieces/california/{piece}.svg'];
+    piece_sets[10] = ['L', 'https://raw.githubusercontent.com/pychess/pychess/refs/heads/master/pieces/chessnut/{piece}.svg'];
+
+
+    const PIECES_URL = piece_sets[1][1];
+    const PIECE_CODES = PIECE_CODES_U;
+
+    //  When using chessboard.js for displaying the board, we give it a URL
+    //  to retrieve the piece images from. However, it will fetch these images
+    //  every time the board is updated. 
+    //
+    //  This is ok if the image host has the right cache settings, but many
+    //  do not. A work around is a poor-man's cache, achieved by loading all
+    //  the images into a list, because if the browswer sees a URL it's 
+    //  already storing somewhere, it won't reload.  However, this internal
+    //  cache can be emptied willy nilly.
+    //
+    //  The reliable fix is to take advantage of the fact that the pieceTheme
+    //  property of chessboard.js can also be a function  (in addition to a
+    //  template URL. 
+    //
+
+    async function build_image_cache(piece_set) {
+        pieces_type = piece_sets[piece_set][0];
+        pieces_url = piece_sets[piece_set][1];
       const cache = {};
-      await Promise.all(PIECE_CODES.map(pc => new Promise(async (ok, err) => {
-        try {
-          const url  = PIECES_URL.replace('{piece}', pc);
+      await Promise.all(
+        PIECE_CODES.map(async pc => {
+          const url  = pieces_url.replace('{piece}', pc  /*.toLowerCase() */);
           const blob = await fetch(url).then(r => r.blob());
-          const fr   = new FileReader();
-          fr.onload  = () => { cache[pc] = fr.result; ok(); };
-          fr.onerror = err;
-          fr.readAsDataURL(blob);
-        } catch (e) { err(e); }
-      })));
+          cache[pc]  = await new Promise(res => {
+            const fr = new FileReader();
+            fr.onload = () => res(fr.result);
+            fr.readAsDataURL(blob);
+          });
+        })
+      );
       return cache;
-    }
-
-    async function create_stockfish_engine () {
-      // there are newer stockfish versions than 10.0.2 but this one is notable 
-      // for compatability across browsers
+}
+    async function create_stockfish_engine() {
       const url  = 'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.min.js';
       const code = await (await fetch(url)).text();
-      return new Worker(URL.createObjectURL(new Blob([code], { type: 'application/javascript' })));
+      return new Worker(URL.createObjectURL(new Blob([code], { type:'application/javascript' })));
     }
 
     (async () => {
-      /* 0. cache the 12 piece images (data-URIs) */
-      const imgCache = await build_image_cache();
+      /* 0. cache the 12 piece images */
+      const imgCache = await build_image_cache(1);
 
       /* 1. game state */
       const game = new Chess(START_FEN);
 
-      function update_status () {
-        const $status = document.getElementById('status');
+      /* 2. DOM refs */
+      const $status = document.getElementById('status');
+      const $move_assist_button    = document.getElementById('move-assist-button');   // ★
 
-        if (game.in_checkmate()) {
-          $status.textContent = 'CHECKMATE';
-        } else if (game.in_stalemate()) {
-          $status.textContent = 'STALEMATE';
-        } else {
-          $status.textContent = '';
-        }
+      /* 3. helpers */
+      function humanTurn () {
+        return (game.turn() === 'w' ? 'white' : 'black') === HUMAN_COLOR;
       }
 
-      /* 2. visual board */
+      function update_status () {
+        if (game.in_checkmate())      $status.textContent = 'CHECKMATE';
+        else if (game.in_stalemate()) $status.textContent = 'STALEMATE';
+        else if (game.in_threefold_repetition())      $status.textContent = 'DITTOMATE';
+        else if (game.insufficient_material())  $status.textContent = 'SCANTMATE'
+        else                          $status.textContent = '';
+
+        /* enable button only when it’s the human’s move */          // ★
+        $move_assist_button.disabled = !( !game.game_over() && humanTurn() );       // ★
+      }
+
+      /* 4. visual board */
       const board = Chessboard('board', {
         position: START_FEN,
         orientation: HUMAN_COLOR,
         draggable: true,
-        pieceTheme: code => imgCache[code],   // ← data‑URI source
+        pieceTheme: c => imgCache[c],
         onDragStart: onDragStart,
         onDrop: onDrop,
         onSnapEnd: () => board.position(game.fen())
       });
+      update_status();   // status bar not part of chessboard
 
-      update_status();   // initial blank
+      function set_piece_set(piece_set) {
+      }
 
-      /* 3. engine */
+
+      /* 5. engine */
       const engine      = await create_stockfish_engine();
       let   engineReady = false;
 
       engine.onmessage = (e) => {
         const line = typeof e === 'object' ? e.data : e;
+        console.log(line);
         if (line === 'uciok') {
           engineReady = true;
           maybeEngineMove();
         } else if (line.startsWith('bestmove')) {
-          const [ , uci ] = line.split(' ');
+          const uci = line.split(' ')[1];
           apply_engine_move(uci);
-        } else if (line.startsWith('info')) {
-          const m = (/ score (?:cp|mate) (-?\d+)/.exec(line))[1];
-          console.log(m);
         }
       };
 
@@ -146,47 +178,48 @@
       engine.postMessage('setoption name Skill Level value ' + ENGINE_SKILL);
       engine.postMessage('ucinewgame');
 
-      /* --- drag helpers --- */
+      /* --- drag handlers --- */
       function onDragStart (source, piece) {
-        if (game.game_over()) return false;
-        const turn = game.turn() === 'w' ? 'white' : 'black';
-        if (turn !== HUMAN_COLOR) return false;
+        if (game.game_over() || !humanTurn()) return false;
         if (HUMAN_COLOR === 'white' && piece.startsWith('b')) return false;
         if (HUMAN_COLOR === 'black' && piece.startsWith('w')) return false;
       }
 
-      function onDrop(source, target) {
-        const p      = game.get(source);
-        const promo  = p?.type === 'p' && (target[1] === '8' || target[1] === '1');
-        const move   = game.move({ from: source, to: target,
-                                   promotion: promo ? 'q' : undefined });
-        if (!move) return 'snapback';
+      function onDrop (source, target) {
+        const p     = game.get(source);
+        const promo = p?.type === 'p' && (target[1] === '8' || target[1] === '1');
+        if (!game.move({ from: source, to: target, promotion: promo ? 'q' : undefined }))
+          return 'snapback';
         update_status();
         maybeEngineMove();
       }
 
-      function maybeEngineMove() {
-        if (!engineReady || game.game_over()) return;
-        if ((game.turn() === 'w' ? 'white' : 'black') === HUMAN_COLOR) return;
+      function maybeEngineMove () {
+        if (!engineReady || game.game_over() || humanTurn()) return;
         engine.postMessage('position fen ' + game.fen());
+        engine.postMessage('setoption name Skill Level value ' + ENGINE_SKILL);   
         engine.postMessage('go depth ' + ENGINE_DEPTH);
       }
 
-      function apply_engine_move(uci) {
-        const move = game.move({
-          from: uci.slice(0,2),
-          to:   uci.slice(2,4),
-          promotion: uci.length === 5 ? uci[4] : undefined
-        });
-        if (move) board.position(game.fen());
+      function apply_engine_move (uci) {
+        game.move({ from: uci.slice(0,2), to: uci.slice(2,4),
+                    promotion: uci.length === 5 ? uci[4] : undefined });
+        board.position(game.fen());
         update_status();
         maybeEngineMove();
       }
 
+      /* 6. assist-move button */
+      $move_assist_button.addEventListener('click', () => {
+        if (!engineReady || game.game_over() || !humanTurn()) return;
+        engine.postMessage('position fen ' + game.fen());
+        engine.postMessage('setoption name Skill Level value ' + ASSIST_ENGINE_SKILL);
+        engine.postMessage('go depth ' + ASSIST_ENGINE_DEPTH);
+      });
+
+      /* kick off if human plays black */
       if (HUMAN_COLOR === 'black') {
-        const t = setInterval(() => {
-          if (engineReady) { clearInterval(t); maybeEngineMove(); }
-        }, 30);
+        const t = setInterval(() => { if (engineReady){clearInterval(t); maybeEngineMove();} }, 30);
       }
     })();
   </script>
