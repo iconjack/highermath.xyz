@@ -45,6 +45,7 @@
   <script src="https://code.jquery.com/ui/1.13.3/jquery-ui.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+  <script src="chesssets.js"></script>
   <script data-goatcounter="https://iconjack.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 
   <script>
@@ -59,6 +60,9 @@
 
     const PIECE_CODES_U  = ['wK','wQ','wR','wB','wN','wP','bK','bQ','bR','bB','bN','bP'];
 
+    // https://github.com/jbkunst/chessboardjs-themes/tree/master/chesspieces
+
+
     // Each of these entries consists of a 'U' or'L', along with a URL (get it?).
     // The 'U' or 'L' indicates whether the pieces are referenced as, e.g. 'bR' or 'br'.
 
@@ -72,7 +76,7 @@
     piece_sets[8] = ['L', 'https://raw.githubusercontent.com/pychess/pychess/refs/heads/master/pieces/chessnut/{piece}.svg'];
     piece_sets[9] = ['L', 'https://raw.githubusercontent.com/pychess/pychess/refs/heads/master/pieces/california/{piece}.svg'];
     piece_sets[10] = ['L', 'https://raw.githubusercontent.com/pychess/pychess/refs/heads/master/pieces/chessnut/{piece}.svg'];
-
+    piece_sets[11] = ['U', 'https://cdn.jsdelivr.net/gh/jbkunst/chessboardjs-themes@master/chesspieces/metro/{piece}.png'];
 
     const PIECES_URL = piece_sets[1][1];
     const PIECE_CODES = PIECE_CODES_U;
@@ -95,29 +99,30 @@
     async function build_image_cache(piece_set) {
         pieces_type = piece_sets[piece_set][0];
         pieces_url = piece_sets[piece_set][1];
-      const cache = {};
-      await Promise.all(
-        PIECE_CODES.map(async pc => {
-          const url  = pieces_url.replace('{piece}', pc  /*.toLowerCase() */);
-          const blob = await fetch(url).then(r => r.blob());
-          cache[pc]  = await new Promise(res => {
-            const fr = new FileReader();
-            fr.onload = () => res(fr.result);
-            fr.readAsDataURL(blob);
-          });
-        })
+        const cache = {};
+        await Promise.all(
+            PIECE_CODES.map(async pc => {
+                const adjusted_piece = (pieces_type === 'L') ? pc.toLowerCase() : pc;
+                const url  = pieces_url.replace('{piece}', adjusted_piece);
+                const blob = await fetch(url).then(r => r.blob());
+                cache[pc]  = await new Promise(res => {
+                    const fr = new FileReader();
+                    fr.onload = () => res(fr.result);
+                    fr.readAsDataURL(blob);
+                });
+            })
       );
       return cache;
 }
     async function create_stockfish_engine() {
-      const url  = 'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.min.js';
-      const code = await (await fetch(url)).text();
-      return new Worker(URL.createObjectURL(new Blob([code], { type:'application/javascript' })));
+        const url  = 'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.min.js';
+        const code = await (await fetch(url)).text();
+        return new Worker(URL.createObjectURL(new Blob([code], { type:'application/javascript' })));
     }
 
     (async () => {
       /* 0. cache the 12 piece images */
-      const imgCache = await build_image_cache(1);
+      const imgCache = await build_image_cache(9);
 
       /* 1. game state */
       const game = new Chess(START_FEN);
