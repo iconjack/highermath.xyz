@@ -10,11 +10,26 @@
         href="https://code.jquery.com/ui/1.13.3/themes/base/jquery-ui.css" />
 
   <style>
-    body  { font-family: sans-serif; margin: 20px; }
+    html, body  {
+        margin: 0; padding: 0; height: 100%; width: 100%;
+    }
+    body {
+        background: url("pwned_background3.png") no-repeat center center;
+        background-size: 100vw 100vh;
+        overflow: hidden;
+    }
+    #board-container {
+        width: 100vw; height: 100vh;
+        display: flex; justify-content: center; align-items: center;
+    }
     #board {
-       width: 720px;
-       max-width: 90vw; 
-       margin-top: 10px;
+       /* width: 720px;
+       max-width: 90vw;
+       margin-left: 140px;
+       margin-top: 200px; */
+       aspect-ratio: 1/1;
+       width: calc(100vmin / 1.4);
+       /* max-width: calc(100vmax / 1.4); */
     }
     #board .white-1e1d7 { background:#eeffd2; }
     #board .black-3c85d { background:#769656; }
@@ -30,16 +45,19 @@
     #move-assist-button {
       font-size:28px; width:60px; height:42px; margin:16px 0;
       cursor:pointer;
-      /* visibility: hidden; */
+      visibility: hidden;
     }
 </style>
 </head>
 <body>
   <span id='title'>pwned</span>
   <span id='version'> v0.1.12.18</span>
-  <div id="board"></div>
-  <div id="status"></div>
-  <button id="move-assist-button">★</button>   <!-- ★ -->
+  <div id="board-container">
+    <div id="board"></div>
+    <div id="status"></div>
+    <button id="move-assist-button">★</button> 
+</div>
+  <!-- <button id="move-assist-button">★</button> -->
 
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://code.jquery.com/ui/1.13.3/jquery-ui.min.js"></script>
@@ -49,6 +67,7 @@
   <script data-goatcounter="https://iconjack.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 
   <script>
+    console.log(window.innerWidth, window.innerHeight);
     const HUMAN_COLOR  = 'white';
     const START_FEN = '4k3/pppppppp/pppppppp/pppppppp/pppppppp/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
     const ENGINE_DEPTH = 12;
@@ -121,110 +140,122 @@
     }
 
     (async () => {
-      /* 0. cache the 12 piece images */
-      const imgCache = await build_image_cache(9);
+        /* 0. cache the 12 piece images */
+        const imgCache = await build_image_cache(9);
 
-      /* 1. game state */
-      const game = new Chess(START_FEN);
+        /* 1. game state */
+        const game = new Chess(START_FEN);
 
-      /* 2. DOM refs */
-      const $status = document.getElementById('status');
-      const $move_assist_button    = document.getElementById('move-assist-button');   // ★
+        /* 2. DOM refs */
+        const $status = document.getElementById('status');
+        const $move_assist_button    = document.getElementById('move-assist-button');   // ★
 
-      /* 3. helpers */
-      function humanTurn () {
-        return (game.turn() === 'w' ? 'white' : 'black') === HUMAN_COLOR;
-      }
-
-      function update_status () {
-        if (game.in_checkmate())      $status.textContent = 'CHECKMATE';
-        else if (game.in_stalemate()) $status.textContent = 'STALEMATE';
-        else if (game.in_threefold_repetition())      $status.textContent = 'DITTOMATE';
-        else if (game.insufficient_material())  $status.textContent = 'SCANTMATE'
-        else                          $status.textContent = '';
-
-        /* enable button only when it’s the human’s move */          // ★
-        $move_assist_button.disabled = !( !game.game_over() && humanTurn() );       // ★
-      }
-
-      /* 4. visual board */
-      const board = Chessboard('board', {
-        position: START_FEN,
-        orientation: HUMAN_COLOR,
-        draggable: true,
-        pieceTheme: c => imgCache[c],
-        onDragStart: onDragStart,
-        onDrop: onDrop,
-        onSnapEnd: () => board.position(game.fen())
-      });
-      update_status();   // status bar not part of chessboard
-
-      function set_piece_set(piece_set) {
-      }
-
-
-      /* 5. engine */
-      const engine      = await create_stockfish_engine();
-      let   engineReady = false;
-
-      engine.onmessage = (e) => {
-        const line = typeof e === 'object' ? e.data : e;
-        console.log(line);
-        if (line === 'uciok') {
-          engineReady = true;
-          maybeEngineMove();
-        } else if (line.startsWith('bestmove')) {
-          const uci = line.split(' ')[1];
-          apply_engine_move(uci);
+        /* 3. helpers */
+        function humanTurn () {
+            return (game.turn() === 'w' ? 'white' : 'black') === HUMAN_COLOR;
         }
-      };
 
-      engine.postMessage('uci');
-      engine.postMessage('setoption name Skill Level value ' + ENGINE_SKILL);
-      engine.postMessage('ucinewgame');
+        function update_status () {
+            if (game.in_checkmate())      $status.textContent = 'CHECKMATE';
+            else if (game.in_stalemate()) $status.textContent = 'STALEMATE';
+            else if (game.in_threefold_repetition())      $status.textContent = 'DITTOMATE';
+            else if (game.insufficient_material())  $status.textContent = 'SCANTMATE'
+            else                          $status.textContent = '';
 
-      /* --- drag handlers --- */
-      function onDragStart (source, piece) {
-        if (game.game_over() || !humanTurn()) return false;
-        if (HUMAN_COLOR === 'white' && piece.startsWith('b')) return false;
-        if (HUMAN_COLOR === 'black' && piece.startsWith('w')) return false;
-      }
+            /* enable button only when it’s the human’s move */          // ★
+            $move_assist_button.disabled = !( !game.game_over() && humanTurn() );       // ★
+        }
 
-      function onDrop (source, target) {
-        const p     = game.get(source);
-        const promo = p?.type === 'p' && (target[1] === '8' || target[1] === '1');
-        if (!game.move({ from: source, to: target, promotion: promo ? 'q' : undefined }))
-          return 'snapback';
-        update_status();
-        maybeEngineMove();
-      }
+        /* 4. visual board */
+        const board = Chessboard('board', {
+            position: START_FEN,
+            orientation: HUMAN_COLOR,
+            draggable: true,
+            responsive: true,
+            pieceTheme: c => imgCache[c],
+            onDragStart: onDragStart,
+            onDrop: onDrop,
+            onSnapEnd: () => board.position(game.fen())
+        });
+        update_status();   // status bar not part of chessboard
 
-      function maybeEngineMove () {
-        if (!engineReady || game.game_over() || humanTurn()) return;
-        engine.postMessage('position fen ' + game.fen());
-        engine.postMessage('setoption name Skill Level value ' + ENGINE_SKILL);   
-        engine.postMessage('go depth ' + ENGINE_DEPTH);
-      }
+        function set_piece_set(piece_set) {
+        }
 
-      function apply_engine_move (uci) {
-        game.move({ from: uci.slice(0,2), to: uci.slice(2,4),
-                    promotion: uci.length === 5 ? uci[4] : undefined });
-        board.position(game.fen());
-        update_status();
-        maybeEngineMove();
-      }
+        //  start your engine
+        const engine      = await create_stockfish_engine();
+        let   engine_ready = false;
 
-      /* 6. assist-move button */
-      $move_assist_button.addEventListener('click', () => {
-        if (!engineReady || game.game_over() || !humanTurn()) return;
-        engine.postMessage('position fen ' + game.fen());
-        engine.postMessage('setoption name Skill Level value ' + ASSIST_ENGINE_SKILL);
-        engine.postMessage('go depth ' + ASSIST_ENGINE_DEPTH);
-      });
+        engine.onmessage = (e) => {
+            const line = typeof e === 'object' ? e.data : e;
+            console.log(line);
+            if (line === 'uciok') {
+            engine_ready = true;
+            maybe_engine_move();
+            } else if (line.startsWith('bestmove')) {
+            const uci = line.split(' ')[1];
+            apply_engine_move(uci);
+            }
+        };
 
+        engine.postMessage('uci');
+        engine.postMessage('setoption name Skill Level value ' + ENGINE_SKILL);
+        engine.postMessage('ucinewgame');
+
+        function onDragStart (source, piece) {
+            if (game.game_over() || !humanTurn()) return false;
+            if (HUMAN_COLOR === 'white' && piece.startsWith('b')) return false;
+            if (HUMAN_COLOR === 'black' && piece.startsWith('w')) return false;
+        }
+
+        function onDrop (source, target) {
+            const p     = game.get(source);
+            const promo = p?.type === 'p' && (target[1] === '8' || target[1] === '1');
+            if (!game.move({ from: source, to: target, promotion: promo ? 'q' : undefined }))
+            return 'snapback';
+            update_status();
+            maybe_engine_move();
+        }
+
+        function maybe_engine_move () {
+            if (!engine_ready || game.game_over() || humanTurn()) return;
+            engine.postMessage('position fen ' + game.fen());
+            engine.postMessage('setoption name Skill Level value ' + ENGINE_SKILL);   
+            engine.postMessage('go depth ' + ENGINE_DEPTH);
+        }
+
+        function apply_engine_move(uci) {
+            game.move({ from: uci.slice(0,2), to: uci.slice(2,4),
+                        promotion: uci.length === 5 ? uci[4] : undefined });
+            board.position(game.fen());
+            update_status();
+            maybe_engine_move();
+        }
+
+        //  Assist Button
+        $move_assist_button.addEventListener('click', () => {
+            if (!engine_ready || game.game_over() || !humanTurn()) return;
+            engine.postMessage('position fen ' + game.fen());
+            engine.postMessage('setoption name Skill Level value ' + ASSIST_ENGINE_SKILL);
+            engine.postMessage('go depth ' + ASSIST_ENGINE_DEPTH);
+        });
+
+        //  M key invokes Assist
+        document.addEventListener('keydown', e => {
+            if (
+                e.key === 'm' &&             // letter m
+                !e.altKey && !e.ctrlKey &&   // no modifiers
+                !e.metaKey && !e.shiftKey && // …
+                e.target === document.body   // not inside a text box (none on this page)
+            ) {
+                $move_assist_button.click(); // trigger the assist move
+                e.preventDefault();
+            }
+        });
+        
       /* kick off if human plays black */
       if (HUMAN_COLOR === 'black') {
-        const t = setInterval(() => { if (engineReady){clearInterval(t); maybeEngineMove();} }, 30);
+        const t = setInterval(() => { if (engine_ready){clearInterval(t); maybe_engine_move();} }, 30);
       }
     })();
   </script>
