@@ -18,6 +18,11 @@
         background-size: 100vw 100vh;
         overflow: hidden;
     }
+
+    :root {
+      --board-width: calc(100vmin / 1.4);
+    }
+
     #board-container {
         width: 100vw; height: 100vh;
         display: flex; justify-content: center; align-items: center;
@@ -28,7 +33,7 @@
        margin-left: 140px;
        margin-top: 200px; */
        aspect-ratio: 1/1;
-       width: calc(100vmin / 1.4);
+       width: var(--board-width);
        /* max-width: calc(100vmax / 1.4); */
     }
     #board .white-1e1d7 { background:#eeffd2; }
@@ -38,9 +43,10 @@
     #title      { font-size:20px; font-variant:small-caps; }
     #version    { font-size:small; }
     #status     {
-      color:darkorange; width:720px; max-width:90vw; margin-top:20px;
-      font-size:64px; font-weight:bold; text-align:center; letter-spacing:2px;
-      height:1.2em;
+        color:darkorange; width:720px; max-width:90vw; margin-top:20px;
+        font-size:64px; font-weight:bold; text-align:center; letter-spacing:2px;
+        width: var(--board-width);
+        height:1.2em;
     }
     #move-assist-button {
       font-size:28px; width:60px; height:42px; margin:16px 0;
@@ -54,7 +60,9 @@
   <span id='version'> v0.1.12.18</span>
   <div id="board-container">
     <div id="board"></div>
-    <div id="status"></div>
+    <div id="status">
+        <img src='engine_light.jpeg' >
+    </div>
     <button id="move-assist-button">★</button> 
 </div>
   <!-- <button id="move-assist-button">★</button> -->
@@ -141,7 +149,7 @@
 
     (async () => {
         /* 0. cache the 12 piece images */
-        const imgCache = await build_image_cache(9);
+        const imgCache = await build_image_cache(1);
 
         /* 1. game state */
         const game = new Chess(START_FEN);
