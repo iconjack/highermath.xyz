@@ -14,7 +14,7 @@
         margin: 0; padding: 0; height: 100%; width: 100%;
     }
     body {
-        background: url("pwned_background3.png") no-repeat center center;
+        background: url("pwned_background.png") no-repeat center center;
         background-size: 100vw 100vh;
         overflow: hidden;
     }
@@ -149,7 +149,7 @@
 
     (async () => {
         /* 0. cache the 12 piece images */
-        const imgCache = await build_image_cache(1);
+        const imgCache = await build_image_cache(9);
 
         /* 1. game state */
         const game = new Chess(START_FEN);
