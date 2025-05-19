@@ -17,55 +17,101 @@
         background: url("pwned_background.png") no-repeat center center;
         background-size: 100vw 100vh;
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
     }
 
     :root {
-      --board-width: calc(100vmin / 1.4);
+      /* Responsive board width calculation based on available viewport space */
+      --board-width: min(calc(100vmin / 1.4), 90vw, 90vh); 
     }
-
+    
+    /* Ensure CSS variables are recalculated on window resize */
+    @media (min-width: 0px) {
+      :root {
+        --board-width: min(calc(100vmin / 1.4), 90vw, 90vh);
+      }
+    }
+    
+    #header {
+        position: absolute;
+        top: 0;
+        left: 0;
+        padding: 10px;
+    }
+    
+    #title { font-size:20px; font-variant:small-caps; }
+    #version { font-size:small; }
+    
     #board-container {
-        width: 100vw; height: 100vh;
-        display: flex; justify-content: center; align-items: center;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 10px;
+        box-sizing: border-box;
     }
+    
+    #board-area {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        max-width: 100%;
+        max-height: calc(100% - 20px);
+    }
+    
     #board {
-       /* width: 720px;
-       max-width: 90vw;
-       margin-left: 140px;
-       margin-top: 200px; */
        aspect-ratio: 1/1;
        width: var(--board-width);
-       /* max-width: calc(100vmax / 1.4); */
+       max-width: 100%;
+       height: auto;
+       transition: width 0.2s ease; /* Smooth transition when resizing */
     }
+    
     #board .white-1e1d7 { background:#eeffd2; }
     #board .black-3c85d { background:#769656; }
     /* #board .white-1e1d7 { background:#D8BFD8; }
     #board .black-3c85d { background:#4B0082; } */
-    #title      { font-size:20px; font-variant:small-caps; }
-    #version    { font-size:small; }
-    #status     {
-        color:darkorange; width:720px; max-width:90vw; margin-top:20px;
-        font-size:64px; font-weight:bold; text-align:center; letter-spacing:2px;
+    
+    #status {
+        color: darkorange;
+        font-size: 64px;
+        font-weight: bold;
+        text-align: center;
+        letter-spacing: 2px;
         width: var(--board-width);
-        height:1.2em;
+        height: 80px;
+        margin-top: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
     }
+    
     #move-assist-button {
-      font-size:28px; width:60px; height:42px; margin:16px 0;
-      cursor:pointer;
+      font-size: 28px;
+      width: 60px;
+      height: 42px;
+      margin: 16px 0;
+      cursor: pointer;
       visibility: hidden;
     }
 </style>
 </head>
 <body>
-  <span id='title'>pwned</span>
-  <span id='version'> v0.1.12.18</span>
+  <div id="header">
+    <span id='title'>pwned</span>
+    <span id='version'> v0.1.12.18</span>
+  </div>
   <div id="board-container">
-    <div id="board"></div>
-    <div id="status">
-        <img src='engine_light.jpeg' >
+    <div id="board-area">
+      <div id="board"></div>
+      <div id="status">
+          <img src='engine_light.jpeg' >
+      </div>
+      <button id="move-assist-button">★</button> 
     </div>
-    <button id="move-assist-button">★</button> 
-</div>
-  <!-- <button id="move-assist-button">★</button> -->
+  </div>
 
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://code.jquery.com/ui/1.13.3/jquery-ui.min.js"></script>
@@ -78,8 +124,8 @@
     console.log(window.innerWidth, window.innerHeight);
     const HUMAN_COLOR  = 'white';
     const START_FEN = '4k3/pppppppp/pppppppp/pppppppp/pppppppp/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-    const ENGINE_DEPTH = 12;
-    const ENGINE_SKILL = 18;
+    const ENGINE_DEPTH = 16;
+    const ENGINE_SKILL = 19;
     const ASSIST_ENGINE_DEPTH = 15;
     const ASSIST_ENGINE_SKILL = 20;
 
@@ -157,6 +203,8 @@
         /* 2. DOM refs */
         const $status = document.getElementById('status');
         const $move_assist_button    = document.getElementById('move-assist-button');   // ★
+        // Flag to auto-finish game: engine plays both sides
+        let autoFinish = false;
 
         /* 3. helpers */
         function humanTurn () {
@@ -186,6 +234,14 @@
             onSnapEnd: () => board.position(game.fen())
         });
         update_status();   // status bar not part of chessboard
+        
+        // Handle window resize
+        function resizeBoard() {
+            board.resize();
+        }
+        
+        // Add event listener for window resize
+        window.addEventListener('resize', resizeBoard);
 
         function set_piece_set(piece_set) {
         }
@@ -211,6 +267,7 @@
         engine.postMessage('ucinewgame');
 
         function onDragStart (source, piece) {
+            if (autoFinish) return false;
             if (game.game_over() || !humanTurn()) return false;
             if (HUMAN_COLOR === 'white' && piece.startsWith('b')) return false;
             if (HUMAN_COLOR === 'black' && piece.startsWith('w')) return false;
@@ -226,9 +283,11 @@
         }
 
         function maybe_engine_move () {
-            if (!engine_ready || game.game_over() || humanTurn()) return;
+            if (!engine_ready || game.game_over()) return;
+            // if not auto-finish mode, only move when it's engine's turn
+            if (!autoFinish && humanTurn()) return;
             engine.postMessage('position fen ' + game.fen());
-            engine.postMessage('setoption name Skill Level value ' + ENGINE_SKILL);   
+            engine.postMessage('setoption name Skill Level value ' + ENGINE_SKILL);
             engine.postMessage('go depth ' + ENGINE_DEPTH);
         }
 
@@ -260,8 +319,23 @@
                 e.preventDefault();
             }
         });
+        //  A key starts Auto-Finish: engine plays both sides until game over
+        document.addEventListener('keydown', e => {
+            if (
+                e.key === 'a' &&             // letter a
+                !e.altKey && !e.ctrlKey &&   // no modifiers
+                !e.metaKey && !e.shiftKey &&
+                e.target === document.body &&
+                !game.game_over()
+            ) {
+                autoFinish = true;
+                maybe_engine_move();
+                e.preventDefault();
+            }
+        });
         
       /* kick off if human plays black */
+      //  THIS IS UNTESTED
       if (HUMAN_COLOR === 'black') {
         const t = setInterval(() => { if (engine_ready){clearInterval(t); maybe_engine_move();} }, 30);
       }
