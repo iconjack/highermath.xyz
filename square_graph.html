@@ -48,6 +48,7 @@
   main { height: calc(100% - 90px); display: grid; grid-template-rows: 1fr; }
   #stageWrap { position: relative; margin: 10px; border-radius: 14px; overflow: hidden; border: 1px solid #1e293b; background: #0a0f17; }
   #svg { width: 100%; height: 100%; display: block; cursor: grab; }
+  .btnset .nbtn.active{ outline: 2px solid var(--accent); color: var(--accent); border-color: var(--accent); }
   #svg.grabbing { cursor: grabbing; }
   .node { stroke: #0d1220; stroke-width: 1.2; }
   .node.cycle { fill: var(--cycle); }
@@ -65,18 +66,32 @@
 </head>
 <body>
   <header>
-    <div class="title">G<sub>p</sub> — Directed graph on {1,…,p−1} with edge i → (i² mod p)</div>
+    <div class="title">G<sub>p</sub> — Directed graph on {1,…,p−1} with edge i → (iⁿ mod p)</div>
     <div class="controls">
       <div class="card" role="group" aria-label="Inputs">
         <label for="p">prime p</label>
         <input id="p" type="number" inputmode="numeric" min="3" step="1" value="97" />
         <label for="scale">scale</label>
         <input id="scale" type="number" min="0.2" max="3" step="0.1" value="1" />
+        <div class="pill" title="Exponent n for x→x^n mod p">n:</div>
+        <div id="nButtons" class="btnset" role="group" aria-label="Exponent n">
+          <button class="secondary nbtn active" data-n="2">2</button>
+          <button class="secondary nbtn" data-n="3">3</button>
+          <button class="secondary nbtn" data-n="4">4</button>
+          <button class="secondary nbtn" data-n="5">5</button>
+        </div>
         <button id="generate">Generate</button>
         <button id="random" class="secondary">Random prime ≤ 997</button>
         <button id="exportSvg" class="secondary" title="Download current SVG">Export SVG</button>
         <span id="error" role="status" aria-live="polite"></span>
       </div>
+      <span class="spacer"></span>
+      <div class="legend card">
+        <span class="pill">Legend</span>
+        <span><span class="swatch" style="background: var(--cycle)"></span>cycle node/edge</span>
+        <span><span class="swatch" style="background: var(--tree)"></span>tree node</span>
+      </div>
+    </div>
       <span class="spacer"></span>
       <div class="legend card">
         <span class="pill">Legend</span>
@@ -100,12 +115,13 @@
       </svg>
       <div class="hud">Pan: <span class="kbd">drag</span> · Zoom: <span class="kbd">wheel</span> · Reset: <span class="kbd">double‑click</span></div>
     </div>
-    <div class="footer" style="padding: 8px 16px;">Functional digraph components are directed cycles with in‑trees. Layout groups each cycle and fans its trees outward. Hover a node for details.</div>
+    <div class="footer" style="padding: 8px 16px;">Functional digraph components are directed cycles with in‑trees for the map x ↦ xⁿ (mod p). Change n with the buttons above.</div>
   </main>
 
 <script>
 (function(){
   const svg = document.getElementById('svg');
+  let expN = 2;
   const content = document.getElementById('content');
   const pInput = document.getElementById('p');
   const scaleInput = document.getElementById('scale');
@@ -119,6 +135,15 @@
     pInput.value = r; generate();
   });
   document.getElementById('generate').addEventListener('click', generate);
+  // exponent buttons
+  document.querySelectorAll('.nbtn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      expN = parseInt(btn.getAttribute('data-n'), 10);
+      generate();
+    });
+  });
   scaleInput.addEventListener('change', ()=>setScale(parseFloat(scaleInput.value)||1));
 
   function setScale(s){
@@ -135,12 +160,21 @@
     for(let i=5;i*i<=n;i+=6){ if(n%i===0||n%(i+2)===0) return false; } return true;
   }
 
+  function modPow(base, exp, mod){
+    // fast modular exponentiation
+    let result = 1 % mod;
+    let b = base % mod;
+    let e = exp|0;
+    while(e>0){ if(e&1) result = (result * b) % mod; b = (b * b) % mod; e >>= 1; }
+    return result;
+  }
+
   function buildGraph(p){
     const n = p-1;
     const next = new Array(n+1);
     const rev = Array.from({length:n+1}, ()=>[]);
     for(let i=1;i<=n;i++){
-      const j = (i*i)%p; // j∈{1..p−1} if p is prime
+      const j = modPow(i, expN, p); // x -> x^n mod p
       next[i]=j; rev[j].push(i);
     }
     return {next, rev, n};
@@ -299,7 +333,7 @@
 
   function render(p){
     content.innerHTML = '';
-    const {next, inCycle, cycles, positions} = layout(p);
+    const {next, inCycle, cycles, positions} = layout(p); // depends on expN
 
     // Edge group first
     const gEdges = document.createElementNS('http://www.w3.org/2000/svg','g');
@@ -350,7 +384,8 @@
       if(nodeRadius < 8) t.setAttribute('opacity','0'); // hide labels when tiny
 
       const tip = document.createElementNS('http://www.w3.org/2000/svg','title');
-      tip.textContent = `i = ${i}\nnext = i² mod p = ${ (i*i)%p }`;
+      tip.textContent = `i = ${i}
+next = i^${expN} mod p = ${ modPow(i, expN, p) }`;
 
       g.appendChild(c); g.appendChild(t); g.appendChild(tip);
       gNodes.appendChild(g);
@@ -380,7 +415,7 @@
     // We'll instead store when creating: redo with a loop
     content.querySelector('#edges').innerHTML='';
     for(let i=1;i<=p-1;i++){
-      const j=(i*i)%p; const a=positions.get(i), b=positions.get(j);
+      const j = next[i]; const a=positions.get(i), b=positions.get(j);
       if(!a||!b) continue;
       const dx=b.x-a.x, dy=b.y-a.y, L=Math.hypot(dx,dy);
       const ux=dx/L, uy=dy/L; const shrink = nodeRadius + 2;
@@ -397,7 +432,7 @@
     }
 
     // Stats in title
-    const stats = `p=${p}  nodes=${p-1}  cycles=${cycles.length}`;
+    const stats = `p=${p}  n=${expN}  nodes=${p-1}  cycles=${cycles.length}`;
     svg.setAttribute('aria-description', stats);
   }
 
