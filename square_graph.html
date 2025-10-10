@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>G_p: i ↦ i² mod p (1…p−1)</title>
+<style>
+  :root {
+    --bg: #0b0f14;
+    --panel: #121821;
+    --accent: #6bb3ff;
+    --accent-2: #9ef0b8;
+    --cycle: #ffd166;
+    --tree: #c7d2fe;
+    --edge: #94a3b8;
+    --text: #d8e1eb;
+    --muted: #7b8794;
+    --danger: #ff6b6b;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+    color: var(--text); background: radial-gradient(circle at 25% 0, #0f1623 0%, var(--bg) 60%);
+  }
+  header { padding: 18px 20px; display: grid; gap: 12px; grid-template-columns: 1fr; border-bottom: 1px solid #1f2937; }
+  .title { font-weight: 700; letter-spacing: .2px; font-size: 18px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .card { background: linear-gradient(180deg, #141b27 0%, var(--panel) 100%);
+          border: 1px solid #263244; border-radius: 14px; box-shadow: 0 10px 24px rgba(0,0,0,.25);
+          padding: 10px 12px; display: inline-flex; gap: 10px; align-items: center; }
+  label { font-size: 13px; color: var(--muted); }
+  input[type="number"], input[type="text"] {
+    background: #0e141f; color: var(--text); border: 1px solid #243142; border-radius: 10px;
+    padding: 9px 12px; outline: none; min-width: 110px;
+  }
+  input[type="number"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(107,179,255,.15); }
+  button {
+    background: var(--accent); color: #0b1220; font-weight: 700; border: none; padding: 10px 14px; border-radius: 10px; cursor: pointer;
+    transition: transform .06s ease, filter .2s ease; box-shadow: 0 8px 18px rgba(107,179,255,.25);
+  }
+  button.secondary { background: #1f2a3c; color: var(--text); border: 1px solid #2b394f; box-shadow: none; }
+  button:hover { filter: brightness(1.05); }
+  button:active { transform: translateY(1px); }
+  .pill { font-size: 12px; padding: 6px 10px; border-radius: 999px; background: #101827; border: 1px solid #223045; color: var(--muted); }
+  .legend { display:flex; gap:10px; align-items:center; }
+  .legend .swatch { width: 12px; height: 12px; border-radius: 2px; display:inline-block; margin-right:6px; }
+  #error { color: var(--danger); font-size: 13px; }
+  main { height: calc(100% - 90px); display: grid; grid-template-rows: 1fr; }
+  #stageWrap { position: relative; margin: 10px; border-radius: 14px; overflow: hidden; border: 1px solid #1e293b; background: #0a0f17; }
+  #svg { width: 100%; height: 100%; display: block; cursor: grab; }
+  #svg.grabbing { cursor: grabbing; }
+  .node { stroke: #0d1220; stroke-width: 1.2; }
+  .node.cycle { fill: var(--cycle); }
+  .node.tree { fill: var(--tree); }
+  .nodeLabel { font-size: 11px; text-anchor: middle; dominant-baseline: middle; pointer-events: none; fill: #09111e; font-weight: 700; }
+  .arrow { stroke: var(--edge); stroke-width: 1.1; fill: none; }
+  .arrow.cycleEdge { stroke: #ffd16699; }
+  .arrow.treeEdge { stroke: #9fb3c899; }
+  .hud { position: absolute; top: 12px; right: 12px; background: rgba(6,10,16,.75); backdrop-filter: blur(6px);
+         border: 1px solid #212b3b; border-radius: 12px; padding: 8px 10px; font-size: 12px; color: var(--muted); }
+  .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 11px; background: #0d1421; border: 1px solid #223045; padding: 2px 6px; border-radius: 6px; color: #9ab1cb; }
+  .footer { font-size: 12px; color: var(--muted); }
+  .spacer { flex: 1 1 auto; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="title">G<sub>p</sub> — Directed graph on {1,…,p−1} with edge i → (i² mod p)</div>
+    <div class="controls">
+      <div class="card" role="group" aria-label="Inputs">
+        <label for="p">prime p</label>
+        <input id="p" type="number" inputmode="numeric" min="3" step="1" value="97" />
+        <label for="scale">scale</label>
+        <input id="scale" type="number" min="0.2" max="3" step="0.1" value="1" />
+        <button id="generate">Generate</button>
+        <button id="random" class="secondary">Random prime ≤ 997</button>
+        <button id="exportSvg" class="secondary" title="Download current SVG">Export SVG</button>
+        <span id="error" role="status" aria-live="polite"></span>
+      </div>
+      <span class="spacer"></span>
+      <div class="legend card">
+        <span class="pill">Legend</span>
+        <span><span class="swatch" style="background: var(--cycle)"></span>cycle node/edge</span>
+        <span><span class="swatch" style="background: var(--tree)"></span>tree node</span>
+      </div>
+    </div>
+  </header>
+  <main>
+    <div id="stageWrap">
+      <svg id="svg" viewBox="0 0 1200 800" aria-label="G_p visualization" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L10,4 L0,8 Z" fill="#94a3b8" />
+          </marker>
+          <marker id="arrowhead-cycle" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L10,4 L0,8 Z" fill="#ffd16699" />
+          </marker>
+        </defs>
+        <g id="content"></g>
+      </svg>
+      <div class="hud">Pan: <span class="kbd">drag</span> · Zoom: <span class="kbd">wheel</span> · Reset: <span class="kbd">double‑click</span></div>
+    </div>
+    <div class="footer" style="padding: 8px 16px;">Functional digraph components are directed cycles with in‑trees. Layout groups each cycle and fans its trees outward. Hover a node for details.</div>
+  </main>
+
+<script>
+(function(){
+  const svg = document.getElementById('svg');
+  const content = document.getElementById('content');
+  const pInput = document.getElementById('p');
+  const scaleInput = document.getElementById('scale');
+  const err = document.getElementById('error');
+
+  const primesBelow1000 = (()=>{
+    const arr=[]; outer: for(let n=3;n<1000;n+=2){ for(let d=3; d*d<=n; d+=2){ if(n%d===0) continue outer; } arr.push(n); } return arr; })();
+
+  document.getElementById('random').addEventListener('click', ()=>{
+    const r = primesBelow1000[Math.floor(Math.random()*primesBelow1000.length)];
+    pInput.value = r; generate();
+  });
+  document.getElementById('generate').addEventListener('click', generate);
+  scaleInput.addEventListener('change', ()=>setScale(parseFloat(scaleInput.value)||1));
+
+  function setScale(s){
+    const vb = svg.viewBox.baseVal; // keep center
+    const cx = vb.x + vb.width/2, cy = vb.y + vb.height/2;
+    const baseW=1200, baseH=800;
+    vb.width = baseW / s; vb.height = baseH / s;
+    vb.x = cx - vb.width/2; vb.y = cy - vb.height/2;
+  }
+
+  // Basic probable-prime check (good up to a few million; fast trial division)
+  function isPrime(n){
+    if(n<=1) return false; if(n<=3) return true; if(n%2===0) return false; if(n%3===0) return n===3;
+    for(let i=5;i*i<=n;i+=6){ if(n%i===0||n%(i+2)===0) return false; } return true;
+  }
+
+  function buildGraph(p){
+    const n = p-1;
+    const next = new Array(n+1);
+    const rev = Array.from({length:n+1}, ()=>[]);
+    for(let i=1;i<=n;i++){
+      const j = (i*i)%p; // j∈{1..p−1} if p is prime
+      next[i]=j; rev[j].push(i);
+    }
+    return {next, rev, n};
+  }
+
+  function findCycles(next, n){
+    const state = new Uint8Array(n+1); // 0=unseen,1=visiting,2=done
+    const inCycle = new Uint8Array(n+1);
+    const cycles = [];
+    for(let v=1; v<=n; v++){
+      if(state[v]) continue;
+      let u=v; const stack=[];
+      while(!state[u]){ state[u]=1; stack.push(u); u=next[u]; }
+      if(state[u]===1){ // found a cycle
+        const cyc=[]; let x;
+        do{ x=stack.pop(); cyc.push(x); inCycle[x]=1; } while(x!==u);
+        cycles.push(cyc.reverse());
+      }
+      // mark path as done
+      for(const x of stack) state[x]=2;
+      for(const x of cycles.flat()) state[x]=2; // ensure cycle nodes marked
+    }
+    return {cycles, inCycle};
+  }
+
+  function layout(p){
+    const {next, rev, n} = buildGraph(p);
+    const {cycles, inCycle} = findCycles(next, n);
+
+    // Compute per-cycle tree depths (max distance to a leaf) for radius sizing
+    function maxDepthFrom(root){
+      const stack=[[root,0]]; let md=0;
+      while(stack.length){ const [u,d]=stack.pop(); md=Math.max(md,d);
+        for(const w of rev[u]) if(!inCycle[w]) stack.push([w,d+1]); }
+      return md;
+    }
+
+    const cycleMeta = cycles.map(cyc=>({
+      nodes:cyc,
+      depth: Math.max(0, ...cyc.map(maxDepthFrom)),
+    }));
+
+    // Arrange cycle groups on a grid
+    const cols = Math.ceil(Math.sqrt(cycleMeta.length));
+    const cellW = 350, cellH = 300;
+    const marginX = 80, marginY = 70;
+
+    const positions = new Map(); // id -> {x,y,cycleIdx}
+
+    cycleMeta.forEach((cm, idx)=>{
+      const row = Math.floor(idx/cols), col = idx%cols;
+      const cx = marginX + col*cellW + cellW/2;
+      const cy = marginY + row*cellH + cellH/2;
+      const R = 60 + cm.depth*24 + Math.min(50, Math.max(0, cm.nodes.length-6)*4);
+      // Place cycle nodes evenly
+      cm.nodes.forEach((v, k)=>{
+        const theta = (2*Math.PI*k)/cm.nodes.length;
+        const x = cx + R*Math.cos(theta);
+        const y = cy + R*Math.sin(theta);
+        positions.set(v, {x,y, cycleIdx: idx, theta, cx, cy, R});
+      });
+    });
+
+    // Lay out trees as radial fans from each cycle node
+    const wedge = 0.9; // radians total angular span per fan
+    function placeTree(root){
+      const base = positions.get(root);
+      // Collect the non-cycle children recursively and assign angles
+      const kids = rev[root].filter(w=>!inCycle[w]);
+      if(kids.length===0) return;
+      distribute(kids, base.theta - wedge/2, base.theta + wedge/2, 1);
+      function distribute(nodes, a0, a1, depth){
+        const step = (a1-a0) / Math.max(1, nodes.length);
+        nodes.forEach((u,i)=>{
+          const a = (a0 + (i+0.5)*step);
+          const r = base.R + depth*30;
+          const x = base.cx + r*Math.cos(a);
+          const y = base.cy + r*Math.sin(a);
+          positions.set(u, {x,y, cycleIdx: base.cycleIdx, theta:a, cx:base.cx, cy:base.cy, R:r});
+          const sub = rev[u].filter(w=>!inCycle[w]);
+          if(sub.length) distribute(sub, a-0.5*step, a+0.5*step, depth+1);
+        });
+      }
+    }
+    cycles.flat().forEach(placeTree);
+
+    // --- Component packing to avoid abutting groups ---
+    // Compute group radii from placed node positions and push components apart if overlapping.
+    const groups = cycleMeta.map((cm, idx)=>({ idx, cx: null, cy: null, r: 0 }));
+
+    // derive centers (we used a single (cx,cy) per group during placement)
+    for (const [id, pos] of positions.entries()) {
+      const g = groups[pos.cycleIdx];
+      if (g.cx === null) { g.cx = pos.cx; g.cy = pos.cy; }
+    }
+
+    // compute radius as max distance of any node in the group from its center, plus padding
+    const PAD = 26;
+    for (const [id, pos] of positions.entries()) {
+      const g = groups[pos.cycleIdx];
+      const dx = pos.x - g.cx, dy = pos.y - g.cy;
+      const d = Math.hypot(dx, dy);
+      if (d > g.r) g.r = d;
+    }
+    for (const g of groups) g.r += PAD;
+
+    // Save original group centers for delta computation after packing
+    const origCenter = groups.map((g, idx) => {
+      // find any node in this group to read its stored cx,cy
+      let found = null;
+      for (const [,pos] of positions) { if (pos.cycleIdx === idx) { found = pos; break; } }
+      return { cx: found ? found.cx : g.cx, cy: found ? found.cy : g.cy };
+    });
+
+    // simple iterative repulsion to resolve overlaps
+    const GAP = 34; // desired gap between component disks
+    for (let iter = 0; iter < 60; iter++) {
+      let moved = false;
+      for (let i = 0; i < groups.length; i++) {
+        for (let j = i+1; j < groups.length; j++) {
+          const a = groups[i], b = groups[j];
+          const dx = b.cx - a.cx, dy = b.cy - a.cy;
+          let dist = Math.hypot(dx, dy) || 0.001;
+          const need = a.r + b.r + GAP;
+          if (dist < need) {
+            const push = (need - dist) * 0.5; // split displacement
+            const ux = dx / dist, uy = dy / dist;
+            a.cx -= ux * push; a.cy -= uy * push;
+            b.cx += ux * push; b.cy += uy * push;
+            moved = true;
+          }
+        }
+      }
+      if (!moved) break;
+    }
+
+    // Compute per-group delta, then apply to all nodes in each group
+    const groupDelta = groups.map((g, idx) => ({ dx: g.cx - origCenter[idx].cx, dy: g.cy - origCenter[idx].cy }));
+
+    for (const [id, pos] of positions.entries()) {
+      const d = groupDelta[pos.cycleIdx];
+      pos.x += d.dx; pos.y += d.dy; pos.cx += d.dx; pos.cy += d.dy; // translate stored centers too
+      positions.set(id, pos);
+    }
+
+    // Recentre packed layout into the viewBox bounds
+    let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+    for (const [,pos] of positions) { if(pos.x<minX)minX=pos.x; if(pos.y<minY)minY=pos.y; if(pos.x>maxX)maxX=pos.x; if(pos.y>maxY)maxY=pos.y; }
+    const W=1200, H=800;
+    const cx = (minX+maxX)/2, cy = (minY+maxY)/2;
+    const dx = W/2 - cx, dy = H/2 - cy;
+    for (const [id,pos] of positions) { pos.x += dx; pos.y += dy; pos.cx += dx; pos.cy += dy; positions.set(id,pos); }
+
+    return {next, rev, inCycle, cycles, positions};
+  }
+
+  function render(p){
+    content.innerHTML = '';
+    const {next, inCycle, cycles, positions} = layout(p);
+
+    // Edge group first
+    const gEdges = document.createElementNS('http://www.w3.org/2000/svg','g');
+    gEdges.setAttribute('id','edges'); content.appendChild(gEdges);
+
+    const gNodes = document.createElementNS('http://www.w3.org/2000/svg','g');
+    gNodes.setAttribute('id','nodes'); content.appendChild(gNodes);
+
+    const nodeRadius = Math.max(4, 10 - Math.max(0, Math.floor((p-1)/200)));
+
+    function addEdge(i, j){
+      const a = positions.get(i), b = positions.get(j);
+      if(!a || !b) return;
+      const dx=b.x-a.x, dy=b.y-a.y, L=Math.hypot(dx,dy);
+      const ux=dx/L, uy=dy/L; // shorten so arrowhead sits outside node
+      const shrink = nodeRadius + 2;
+      const x1=a.x + ux*shrink, y1=a.y + uy*shrink;
+      const x2=b.x - ux*(shrink+1), y2=b.y - uy*(shrink+1);
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      const d = `M ${x1.toFixed(2)} ${y1.toFixed(2)} L ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+      path.setAttribute('d', d);
+      const cycleEdge = inCycle[i] && inCycle[j];
+      path.setAttribute('class', `arrow ${cycleEdge? 'cycleEdge':'treeEdge'}`);
+      path.setAttribute('marker-end', `url(#${cycleEdge? 'arrowhead-cycle':'arrowhead'})`);
+      gEdges.appendChild(path);
+    }
+
+    for(let i=1;i<=p-1;i++) addEdge(i, next[i]);
+
+    // Nodes
+    const tooltip = document.createElementNS('http://www.w3.org/2000/svg','title');
+    function addNode(i){
+      const pos = positions.get(i); if(!pos) return;
+      const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+      g.setAttribute('transform', `translate(${pos.x},${pos.y})`);
+      g.setAttribute('data-id', i);
+
+      const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      c.setAttribute('r', nodeRadius);
+      c.setAttribute('class', `node ${inCycle[i]? 'cycle':'tree'}`);
+
+      const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.textContent = i;
+      t.setAttribute('class','nodeLabel');
+      t.setAttribute('text-anchor','middle');
+      t.setAttribute('dominant-baseline','middle');
+      { const digits = (''+i).length; const fs = Math.max(7, Math.min(14, nodeRadius*1.6 / (0.85 + 0.35*(digits-1)))) ; t.setAttribute('font-size', fs.toFixed(1)); }
+      if(nodeRadius < 8) t.setAttribute('opacity','0'); // hide labels when tiny
+
+      const tip = document.createElementNS('http://www.w3.org/2000/svg','title');
+      tip.textContent = `i = ${i}\nnext = i² mod p = ${ (i*i)%p }`;
+
+      g.appendChild(c); g.appendChild(t); g.appendChild(tip);
+      gNodes.appendChild(g);
+    }
+    for(let i=1;i<=p-1;i++) addNode(i);
+
+    // Simple highlight on hover
+    gNodes.addEventListener('mouseover', (e)=>{
+      const g = e.target.closest('g[data-id]'); if(!g) return;
+      const id = +g.getAttribute('data-id');
+      for(const path of content.querySelectorAll('#edges path')) path.style.opacity = .25;
+      for(const n of content.querySelectorAll('#nodes g')) n.style.opacity = .4;
+      g.style.opacity = 1;
+      // highlight its outgoing and incoming
+      for(const path of content.querySelectorAll('#edges path')){
+        if(path.__from===id || path.__to===id) path.style.opacity = 1;
+      }
+    });
+    gNodes.addEventListener('mouseout', ()=>{
+      for(const path of content.querySelectorAll('#edges path')) path.style.opacity = '';
+      for(const n of content.querySelectorAll('#nodes g')) n.style.opacity = '';
+    });
+
+    // Tag edges with from/to for hover highlight (after DOM insert)
+    let k=0; for(const path of content.querySelectorAll('#edges path')){ path.__seq=++k; }
+    // Recompute from/to by nearest nodes (cheap because indices correlate)
+    // We'll instead store when creating: redo with a loop
+    content.querySelector('#edges').innerHTML='';
+    for(let i=1;i<=p-1;i++){
+      const j=(i*i)%p; const a=positions.get(i), b=positions.get(j);
+      if(!a||!b) continue;
+      const dx=b.x-a.x, dy=b.y-a.y, L=Math.hypot(dx,dy);
+      const ux=dx/L, uy=dy/L; const shrink = nodeRadius + 2;
+      const x1=a.x + ux*shrink, y1=a.y + uy*shrink;
+      const x2=b.x - ux*(shrink+1), y2=b.y - uy*(shrink+1);
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('d', `M ${x1.toFixed(2)} ${y1.toFixed(2)} L ${x2.toFixed(2)} ${y2.toFixed(2)}`);
+      const cycleEdge = (content.querySelector(`#nodes g[data-id='${i}'] circle`).classList.contains('cycle') &&
+                         content.querySelector(`#nodes g[data-id='${j}'] circle`).classList.contains('cycle'));
+      path.setAttribute('class', `arrow ${cycleEdge? 'cycleEdge':'treeEdge'}`);
+      path.setAttribute('marker-end', `url(#${cycleEdge? 'arrowhead-cycle':'arrowhead'})`);
+      path.__from = i; path.__to = j;
+      content.querySelector('#edges').appendChild(path);
+    }
+
+    // Stats in title
+    const stats = `p=${p}  nodes=${p-1}  cycles=${cycles.length}`;
+    svg.setAttribute('aria-description', stats);
+  }
+
+  function generate(){
+    const p = parseInt(pInput.value,10);
+    err.textContent = '';
+    if(!Number.isFinite(p) || p<3) { err.textContent = 'Enter an integer p ≥ 3.'; return; }
+    if(!isPrime(p)) { err.textContent = 'Warning: p is not prime. The graph is still drawn on 1…p−1.'; }
+    render(p);
+  }
+
+  // Pan & zoom
+  (function(){
+    const vb = svg.viewBox.baseVal; const base = {w:1200, h:800};
+    let dragging=false, start={x:0,y:0}, vbStart={x:0,y:0};
+    svg.addEventListener('mousedown', e=>{ dragging=true; svg.classList.add('grabbing'); start={x:e.clientX,y:e.clientY}; vbStart={x:vb.x,y:vb.y}; });
+    window.addEventListener('mousemove', e=>{
+      if(!dragging) return; const dx=(e.clientX-start.x)*(vb.width/svg.clientWidth); const dy=(e.clientY-start.y)*(vb.height/svg.clientHeight); vb.x = vbStart.x - dx; vb.y = vbStart.y - dy; });
+    window.addEventListener('mouseup', ()=>{ dragging=false; svg.classList.remove('grabbing'); });
+    svg.addEventListener('wheel', e=>{
+      e.preventDefault(); const scale = (e.deltaY>0)? 1.1 : 0.9; const mx=e.offsetX, my=e.offsetY;
+      // Zoom to mouse position
+      const x = vb.x + mx*(vb.width/svg.clientWidth);
+      const y = vb.y + my*(vb.height/svg.clientHeight);
+      vb.width *= scale; vb.height *= scale; vb.x = x - mx*(vb.width/svg.clientWidth); vb.y = y - my*(vb.height/svg.clientHeight);
+      scaleInput.value = (1200/vb.width).toFixed(2);
+    }, {passive:false});
+    svg.addEventListener('dblclick', ()=>{ vb.x=0; vb.y=0; vb.width=base.w; vb.height=base.h; scaleInput.value='1'; });
+  })();
+
+  // Export SVG
+  document.getElementById('exportSvg').addEventListener('click', ()=>{
+    const ser = new XMLSerializer();
+    const xml = ser.serializeToString(svg);
+    const blob = new Blob([xml], {type:'image/svg+xml;charset=utf-8'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    const p = parseInt(pInput.value,10)||0; a.download = `G_p_p${p||'n'}.svg`; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+  });
+
+  // Initial render
+  generate();
+})();
+</script>
+</body>
+</html>
