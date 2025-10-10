@@ -1,572 +1,727 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Functional Digraph G_{p,n}: x ↦ x^n (mod p)</title>
-<style>
-  :root{
-    --bg:#0b0f14;
-    --fg:#d9e1ee;
-    --cycle:#ffd166;        /* warm for cycles */
-    --tree:#4cc9f0;         /* internal tree nodes */
-    --term:#f72585;         /* terminal nodes (indegree 0) */
-    --edge:#93a1b0;
-    --edge-cycle:#ffad3b;
-    --hull:#ffffff22;
-    --hull-fill:#ffffff08;  /* subtle tint */
-    --panel:#0f141b;
-    --accent:#5eead4;
-  }
-  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial,sans-serif}
-  header,footer{
-    background:linear-gradient(180deg,#0f141b,#0b0f14);
-    padding:10px 12px;
-    border-bottom:1px solid #11161f;
-  }
-  header{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  label{font-size:13px;opacity:.9}
-  input[type=number]{width:7.5em}
-  .btn{
-    background:#17202b;color:var(--fg);border:1px solid #1d2733;border-radius:8px;
-    padding:6px 10px;cursor:pointer
-  }
-  .btn:hover{border-color:#2a3747}
-  .btn.on{outline:2px solid var(--accent);outline-offset:1px}
-  .group{display:inline-flex;gap:6px;align-items:center;background:#0f141b;padding:6px 8px;border-radius:10px;border:1px solid #1b2531}
-  .grow{flex:1}
-  #wrap{position:relative;height:calc(100% - 120px)}
-  #svg{width:100%;height:100%;background:var(--bg);user-select:none;touch-action:none}
-  .node text{fill:#0b0f14;font-weight:600;pointer-events:none}
-  .node.cycle circle{fill:var(--cycle)}
-  .node.tree  circle{fill:var(--tree)}
-  .node.term  circle{fill:var(--term)}
-  .edge{stroke:var(--edge);stroke-width:1.25px;fill:none;opacity:.9}
-  .edge.cycle{stroke:var(--edge-cycle);opacity:.98}
-  .hull{stroke:var(--hull);stroke-dasharray:6 6;stroke-width:1.2;fill:var(--hull-fill)}
-  .status{font-variant-numeric:tabular-nums}
-  .msg{padding:14px 16px;color:#ddd}
-  .tip{opacity:.7;font-size:12px}
-  #tooltip{
-    position:absolute;pointer-events:none;background:#111827; color:#e5e7eb; border:1px solid #222c3a;
-    padding:6px 8px; border-radius:8px; font-size:12px; white-space:nowrap; transform:translate(8px,8px); display:none
-  }
-  .slider{width:150px}
-  .kbd{background:#11161f;border:1px solid #1f2937;border-bottom-width:2px;padding:1px 5px;border-radius:6px;font-size:12px}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Functional Digraph Visualizer</title>
+    <script src="https://cdn.jsdelivr.net/npm/webcola/dist/cola.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #e8e8e8;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .controls {
+            background: #1a1a1a;
+            padding: 12px 20px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .control-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        label {
+            font-size: 13px;
+            color: #999;
+            font-weight: 500;
+        }
+        input[type="number"] {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            width: 80px;
+            font-size: 14px;
+        }
+        button {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #e8e8e8;
+            padding: 6px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.15s;
+        }
+        button:hover { background: #3a3a3a; border-color: #555; }
+        button.active {
+            background: #0066ff;
+            border-color: #0088ff;
+            color: #fff;
+        }
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        svg {
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+        svg.panning { cursor: grabbing; }
+        .status {
+            background: #1a1a1a;
+            padding: 10px 20px;
+            border-top: 1px solid #333;
+            font-size: 12px;
+            color: #888;
+            font-family: 'Courier New', monospace;
+        }
+        .tooltip {
+            position: absolute;
+            background: rgba(30, 30, 30, 0.95);
+            border: 1px solid #555;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            pointer-events: none;
+            display: none;
+            z-index: 1000;
+            font-family: 'Courier New', monospace;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .node { cursor: pointer; transition: opacity 0.2s; }
+        .node:hover { opacity: 0.85; }
+    </style>
 </head>
 <body>
-  <header>
-    <div class="group">
-      <label for="pInput">p:</label>
-      <input id="pInput" type="number" min="3" step="1" value="101"/>
-      <button class="btn" id="randPrime">Random prime ≤ 997</button>
+    <div class="controls">
+        <div class="control-group">
+            <label for="pInput">p:</label>
+            <input type="number" id="pInput" value="13" min="3">
+        </div>
+        <div class="control-group">
+            <label>n:</label>
+            <button class="n-btn active" data-n="2">2</button>
+            <button class="n-btn" data-n="3">3</button>
+            <button class="n-btn" data-n="4">4</button>
+            <button class="n-btn" data-n="5">5</button>
+        </div>
+        <button id="generateBtn">Generate</button>
+        <button id="randomBtn">Random Prime ≤ 997</button>
+        <div class="control-group">
+            <label for="scaleInput">Scale:</label>
+            <input type="number" id="scaleInput" value="1" min="0.1" max="5" step="0.1">
+        </div>
+        <button id="exportBtn">Export SVG</button>
     </div>
-    <div class="group" id="expGroup" role="group" aria-label="exponent">
-      <span>n:</span>
-      <button class="btn exp" data-n="2">2</button>
-      <button class="btn exp" data-n="3">3</button>
-      <button class="btn exp" data-n="4">4</button>
-      <button class="btn exp" data-n="5">5</button>
+    
+    <div class="canvas-container" id="canvasContainer">
+        <svg id="svg"></svg>
+        <div class="tooltip" id="tooltip"></div>
     </div>
-    <div class="group">
-      <button class="btn" id="generate">Generate</button>
-      <button class="btn" id="export">Export SVG</button>
-    </div>
-    <div class="group">
-      <label for="scaleSlider">Scale</label>
-      <input id="scaleSlider" class="slider" type="range" min="0.3" max="2.5" step="0.01" value="1"/>
-      <label for="rSlider">Node size</label>
-      <input id="rSlider" class="slider" type="range" min="6" max="26" step="1" value="12"/>
-    </div>
-    <div class="grow"></div>
-    <div class="tip">Pan: drag • Zoom: wheel • Reset: double-click • Switch n: <span class="kbd">2</span>/<span class="kbd">3</span>/<span class="kbd">4</span>/<span class="kbd">5</span></div>
-  </header>
+    
+    <div class="status" id="status">Ready</div>
 
-  <div id="wrap">
-    <svg id="svg" viewBox="-600 -350 1200 700">
-      <defs>
-        <marker id="arrow" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse">
-          <path d="M0,0 L8,4 L0,8 Z" fill="currentColor"></path>
-        </marker>
-      </defs>
-      <g id="viewport"></g>
-    </svg>
-    <div id="tooltip"></div>
-  </div>
-
-  <footer>
-    <div id="status" class="status">p=…  n=…  nodes=…  cycles=…</div>
-    <div id="err" class="msg" style="display:none"></div>
-  </footer>
-
-<script>
-(() => {
-  "use strict";
-
-  // ---------- Utilities ----------
-  const primesUpTo997 = (()=>{ // deterministic primes ≤ 997
-    const ps=[2]; for(let x=3;x<=997;x+=2){let ok=true;for(const p of ps){if(p*p>x)break;if(x%p===0){ok=false;break}} if(ok)ps.push(x)} return ps;
-  })();
-
-  const svg = document.getElementById('svg');
-  const vp  = document.getElementById('viewport');
-  const pInput = document.getElementById('pInput');
-  const statusEl = document.getElementById('status');
-  const errEl = document.getElementById('err');
-  const tip = document.getElementById('tooltip');
-  const scaleSlider = document.getElementById('scaleSlider');
-  const rSlider = document.getElementById('rSlider');
-
-  let state = {
-    p: 101,
-    n: 2,
-    nodeR: 12,
-    scale: 1,
-    tx: 0, ty: 0,
-  };
-
-  // ---------- Math core ----------
-  function modPow(base, exp, mod){
-    let res = 1 % mod, b = base % mod, e = exp;
-    while(e>0){ if(e & 1) res = (res * b) % mod; b = (b * b) % mod; e >>= 1; }
-    return res;
-  }
-  function buildMapping(p, n){
-    const f = new Array(p);
-    for(let x=1; x<=p-1; x++){
-      let y = modPow(x, n, p);
-      if(y===0) y = 1; // keep inside domain even if p composite
-      f[x] = y;
-    }
-    return f;
-  }
-  function indegrees(f, p){
-    const indeg = new Array(p).fill(0);
-    for(let x=1;x<=p-1;x++) indeg[f[x]]++;
-    return indeg;
-  }
-  function decompose(f, p){
-    const seen = new Array(p).fill(0);
-    const onstack = new Array(p).fill(0);
-    const components = [];
-    for(let s=1; s<=p-1; s++){
-      if(seen[s]) continue;
-      let x = s;
-      while(!seen[x]){ seen[x]=1; onstack[x]=1; x = f[x]; }
-      if(onstack[x]){
-        const cyc = []; let y = x;
-        do { cyc.push(y); y = f[y]; } while(y!==x && cyc.length<=p);
-        for(const v of cyc) onstack[v]=0;
-
-        const rev = Array.from({length:p}, ()=>[]);
-        for(let u=1; u<=p-1; u++){ const v=f[u]; if(v!==u) rev[v].push(u); }
-        const trees = new Map();
-        for(const c of cyc){
-          const list = []; const st=[...rev[c]]; const vis=new Set();
-          while(st.length){
-            const u = st.pop();
-            if(vis.has(u) || cyc.includes(u)) continue;
-            vis.add(u); list.push(u);
-            for(const w of rev[u]) if(!vis.has(w)) st.push(w);
-          }
-          trees.set(c, list);
+    <script>
+        let state = {
+            p: 13,
+            n: 2,
+            graph: null,
+            layout: null,
+            transform: { x: 0, y: 0, scale: 1 },
+            isPanning: false,
+            panStart: { x: 0, y: 0 }
+        };
+        
+        const CONFIG = {
+            nodeRadius: 18,
+            cycleRadius: 100,
+            treeLayerSpacing: 65,
+            componentPadding: 120,
+            colors: {
+                cycle: '#ff6b6b',
+                internal: '#4ecdc4',
+                terminal: '#a8dadc',
+                cycleEdge: '#ff8585',
+                treeEdge: '#555'
+            }
+        };
+        
+        const PRIMES = [3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97,101,103,107,109,113,127,131,137,139,149,151,157,163,167,173,179,181,191,193,197,199,211,223,227,229,233,239,241,251,257,263,269,271,277,281,283,293,307,311,313,317,331,337,347,349,353,359,367,373,379,383,389,397,401,409,419,421,431,433,439,443,449,457,461,463,467,479,487,491,499,503,509,521,523,541,547,557,563,569,571,577,587,593,599,601,607,613,617,619,631,641,643,647,653,659,661,673,677,683,691,701,709,719,727,733,739,743,751,757,761,769,773,787,797,809,811,821,823,827,829,839,853,857,859,863,877,881,883,887,907,911,919,929,937,941,947,953,967,971,977,983,991,997];
+        
+        function init() {
+            document.getElementById('generateBtn').onclick = generate;
+            document.getElementById('randomBtn').onclick = () => {
+                const prime = PRIMES[Math.floor(Math.random() * PRIMES.length)];
+                document.getElementById('pInput').value = prime;
+                generate();
+            };
+            document.getElementById('exportBtn').onclick = exportSVG;
+            document.getElementById('scaleInput').oninput = () => {
+                const scale = parseFloat(document.getElementById('scaleInput').value);
+                if (scale > 0) {
+                    state.transform.scale = scale;
+                    updateTransform();
+                }
+            };
+            
+            document.querySelectorAll('.n-btn').forEach(btn => {
+                btn.onclick = () => {
+                    document.querySelectorAll('.n-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    state.n = parseInt(btn.dataset.n);
+                    generate();
+                };
+            });
+            
+            document.getElementById('pInput').onkeypress = e => {
+                if (e.key === 'Enter') generate();
+            };
+            
+            setupInteractions();
+            generate();
         }
-        components.push({cycle:cyc, trees});
-      }
-      x = s; while(onstack[x]){ onstack[x]=0; x=f[x]; }
-    }
-    return components;
-  }
-  function classifyNodes(f, p, components){
-    const indeg = indegrees(f,p);
-    const classOf = new Array(p).fill("term");
-    const inCycle = new Array(p).fill(false);
-    for(const comp of components) for(const v of comp.cycle) inCycle[v]=true;
-    for(let i=1;i<=p-1;i++){
-      classOf[i] = inCycle[i] ? "cycle" : (indeg[i]>0 ? "tree" : "term");
-    }
-    return { indeg, classOf, inCycle };
-  }
-
-  // ---------- Anti-overlap relaxer ----------
-  function relaxPositions(pos, nodeR, iterations=3) {
-    const keys = [...pos.keys()];
-    const minD = nodeR * 2.6; // bigger gap
-    for (let it = 0; it < iterations; it++) {
-      for (let i = 0; i < keys.length; i++) {
-        const ai = keys[i], a = pos.get(ai);
-        for (let j = i + 1; j < keys.length; j++) {
-          const bj = keys[j], b = pos.get(bj);
-          const dx = b.x - a.x, dy = b.y - a.y;
-          const d = Math.hypot(dx, dy);
-          if (d > 0 && d < minD) {
-            const push = (minD - d) * 0.5;
-            const ux = dx / d, uy = dy / d;
-            a.x -= ux * push; a.y -= uy * push;
-            b.x += ux * push; b.y += uy * push;
-          }
+        
+        function setupInteractions() {
+            const svg = document.getElementById('svg');
+            
+            svg.onmousedown = e => {
+                if (e.target.classList.contains('node')) return;
+                state.isPanning = true;
+                state.panStart = { x: e.clientX - state.transform.x, y: e.clientY - state.transform.y };
+                svg.classList.add('panning');
+            };
+            
+            svg.onmousemove = e => {
+                if (!state.isPanning) return;
+                state.transform.x = e.clientX - state.panStart.x;
+                state.transform.y = e.clientY - state.panStart.y;
+                updateTransform();
+            };
+            
+            const endPan = () => {
+                state.isPanning = false;
+                svg.classList.remove('panning');
+            };
+            svg.onmouseup = endPan;
+            svg.onmouseleave = endPan;
+            
+            svg.onwheel = e => {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                const newScale = Math.max(0.1, Math.min(5, state.transform.scale * delta));
+                
+                const rect = svg.getBoundingClientRect();
+                const mx = e.clientX - rect.left;
+                const my = e.clientY - rect.top;
+                
+                state.transform.x = mx - (mx - state.transform.x) * (newScale / state.transform.scale);
+                state.transform.y = my - (my - state.transform.y) * (newScale / state.transform.scale);
+                state.transform.scale = newScale;
+                
+                document.getElementById('scaleInput').value = newScale.toFixed(1);
+                updateTransform();
+            };
+            
+            svg.ondblclick = () => {
+                state.transform = { x: 0, y: 0, scale: 1 };
+                document.getElementById('scaleInput').value = '1';
+                updateTransform();
+            };
         }
-      }
-    }
-  }
-
-  // ---------- Layout (cycle ring + fanned trees) ----------
-  function layoutComponent(comp, f, opts){
-    const { nodeR } = opts;
-    const cycle = comp.cycle.slice();
-    const L = cycle.length;
-
-    // Larger ring so adjacent cycle labels breathe
-    const minArc = 2.8 * nodeR;                 // arc length per cycle node
-    const ringR_by_arc  = (minArc * L) / (2 * Math.PI);
-    const ringR_by_size = Math.max(48, 3.2 * nodeR * Math.sqrt(L));
-    const baseCycleR = Math.max(ringR_by_arc, ringR_by_size);
-
-    const angleStep = (2*Math.PI)/Math.max(1, L);
-    const pos = new Map();
-
-    // place cycle nodes
-    for(let i=0;i<L;i++){
-      const theta = i*angleStep;
-      pos.set(cycle[i], {x: baseCycleR*Math.cos(theta), y: baseCycleR*Math.sin(theta), theta});
-    }
-
-    // reverse adjacency limited to the component
-    const rev = new Map();
-    for(const v of cycle) rev.set(v, []);
-    for(const [root, list] of comp.trees.entries()){
-      for(const u of list){
-        const v = f[u];
-        if(!rev.has(v)) rev.set(v, []);
-        rev.get(v).push(u);
-        if(!rev.has(u)) rev.set(u, []);
-      }
-    }
-
-    // trees
-    const depthMap = new Map();
-    for(let i=0;i<L;i++){
-      const root = cycle[i];
-      const rootPos = pos.get(root);
-      const children = (rev.get(root) || []).slice().sort((a,b)=>a-b);
-
-      const q = [];
-      for(const c of children){ q.push({u:c,depth:1}); depthMap.set(c,1); }
-
-      const fanCount = Math.max(1, children.length);
-      const spread = Math.min(Math.PI/3.0, 0.14 + fanCount*0.075);
-      const baseTheta = rootPos.theta;
-      let index = 0;
-      const assignedAngle = new Map();
-      for(const c of children){
-        const frac = (fanCount===1)?0:(index/(fanCount-1)-0.5);
-        assignedAngle.set(c, baseTheta + frac*spread);
-        index++;
-      }
-
-      while(q.length){
-        const {u,depth} = q.shift();
-        const parent = f[u];
-        let theta = assignedAngle.get(u);
-        if(theta===undefined){
-          const parAngle = assignedAngle.get(parent);
-          theta = (parAngle!==undefined)? parAngle : baseTheta;
-          assignedAngle.set(u, theta);
+        
+        function updateTransform() {
+            const g = document.getElementById('mainGroup');
+            if (g) {
+                g.setAttribute('transform', 
+                    `translate(${state.transform.x},${state.transform.y}) scale(${state.transform.scale})`);
+            }
         }
-        const radialStep = Math.max(30, nodeR * 3.2);  // push levels farther out
-        const dist = baseCycleR + depth*radialStep;
-        const jitter = ((u*9301+49297)%233)/233 - 0.5;
-        const rtheta = theta + 0.05*jitter;
-        pos.set(u, {x: dist*Math.cos(rtheta), y: dist*Math.sin(rtheta), theta:rtheta});
-
-        const kids = (rev.get(u) || []).slice().sort((a,b)=>a-b);
-        const kspread = Math.min(0.8, 0.14 + kids.length*0.055);
-        for(let k=0;k<kids.length;k++){
-          const w = kids[k];
-          if(depthMap.has(w)) continue;
-          const frac = (kids.length===1)?0:(k/(kids.length-1)-0.5);
-          assignedAngle.set(w, rtheta + frac*kspread);
-          depthMap.set(w, depth+1);
-          q.push({u:w, depth:depth+1});
+        
+        function generate() {
+            state.p = parseInt(document.getElementById('pInput').value);
+            
+            if (!state.p || state.p < 3) {
+                document.getElementById('status').textContent = 'Error: p must be ≥ 3';
+                document.getElementById('svg').innerHTML = '';
+                return;
+            }
+            
+            state.graph = buildGraph(state.p, state.n);
+            state.layout = computeLayout(state.graph, state.p);
+            render();
         }
-      }
-    }
-
-    // relax to remove residual overlaps
-    relaxPositions(pos, nodeR, 3);
-
-    // bound radius
-    let rMax = 0;
-    for(const {x,y} of pos.values()){
-      const r = Math.hypot(x,y) + nodeR + 6;
-      if(r>rMax) rMax = r;
-    }
-    return { pos, radius: Math.max(rMax, baseCycleR+nodeR+8) };
-  }
-
-  // ---------- Convex hull ----------
-  function convexHull(points){
-    if(points.length<=1) return points.slice();
-    const pts = points.slice().sort((a,b)=> a.x===b.x ? a.y-b.y : a.x-b.x);
-    const cross=(o,a,b)=>(a.x-o.x)*(b.y-o.y)-(a.y-o.y)*(b.x-o.x);
-    const lower=[]; for(const p of pts){ while(lower.length>=2 && cross(lower[lower.length-2], lower[lower.length-1], p)<=0) lower.pop(); lower.push(p); }
-    const upper=[]; for(let i=pts.length-1;i>=0;i--){ const p=pts[i]; while(upper.length>=2 && cross(upper[upper.length-2], upper[upper.length-1], p)<=0) upper.pop(); upper.push(p); }
-    upper.pop(); lower.pop();
-    return lower.concat(upper);
-  }
-
-  // ---------- Component packing ----------
-  function packComponents(layouts, cellGap=50){
-    const comps = layouts.slice().sort((a,b)=> b.radius - a.radius);
-    const n = comps.length;
-    const cols = Math.ceil(Math.sqrt(n));
-    const rows = Math.ceil(n/cols);
-    const maxR = comps.reduce((m,c)=>Math.max(m,c.radius), 0);
-    const cell = 2*maxR + cellGap;
-    const placements = [];
-    for(let i=0;i<n;i++){
-      const col = i % cols, row = Math.floor(i/cols);
-      placements.push({cx:(col-(cols-1)/2)*cell, cy:(row-(rows-1)/2)*cell});
-    }
-    return placements;
-  }
-
-  // ---------- Drawing helpers ----------
-  function clearSVG(){ while(vp.firstChild) vp.removeChild(vp.firstChild); }
-
-  function autoTextSize(label, r){
-    const len = String(label).length;
-    const base = r*1.35;
-    if(len===1) return base;
-    if(len===2) return base*0.95;
-    if(len===3) return base*0.80;
-    return Math.max(9, base*0.70);
-  }
-
-  function drawSelfLoop(container, x, y, r, color){
-    const loopR = Math.max(7, 0.95*r);
-    const offset = r + loopR + 4;
-    const phi = Math.PI/4; // tilt away gently
-    const cx = x + offset * Math.cos(phi);
-    const cy = y - offset * Math.sin(phi);
-    const a0 = Math.PI*0.2, a1 = Math.PI*1.9;
-    const p0 = `${cx + loopR*Math.cos(a0)},${cy + loopR*Math.sin(a0)}`;
-    const p1 = `${cx + loopR*Math.cos(a1)},${cy + loopR*Math.sin(a1)}`;
-    const largeArc = (a1-a0) > Math.PI ? 1 : 0;
-    const path = document.createElementNS("http://www.w3.org/2000/svg","path");
-    path.setAttribute("d", `M ${p0} A ${loopR} ${loopR} 0 ${largeArc} 1 ${p1}`);
-    path.setAttribute("class","edge cycle");
-    path.setAttribute("stroke", color);
-    path.setAttribute("fill","none");
-    path.setAttribute("marker-end","url(#arrow)");
-    container.appendChild(path);
-  }
-
-  function drawArrow(uPos, vPos, nodeR, isCycleEdge){
-    const dx = vPos.x - uPos.x, dy = vPos.y - uPos.y;
-    const L = Math.hypot(dx,dy);
-    if(L < 1e-6) return;
-
-    const nx = dx / L, ny = dy / L;
-    const start = {x: uPos.x + nx*nodeR, y: uPos.y + ny*nodeR};
-    const end   = {x: vPos.x - nx*(nodeR+3), y: vPos.y - ny*(nodeR+3)};
-
-    // If the drawable segment is too short, render a small curved arc instead of a stubby line
-    const minStraight = Math.max(10, nodeR*0.8);
-    const segLen = Math.hypot(end.x-start.x, end.y-start.y);
-
-    const stroke = isCycleEdge? "var(--edge-cycle)" : "var(--edge)";
-
-    if(segLen < minStraight){
-      const midx = (start.x + end.x)/2, midy = (start.y + end.y)/2;
-      const px = -ny, py = nx; // perpendicular
-      const bulge = Math.max(8, nodeR*0.9);
-      const cx = midx + px * bulge;
-      const cy = midy + py * bulge;
-      const path = document.createElementNS("http://www.w3.org/2000/svg","path");
-      path.setAttribute("d", `M ${start.x},${start.y} Q ${cx},${cy} ${end.x},${end.y}`);
-      path.setAttribute("class","edge" + (isCycleEdge?" cycle":""));
-      path.setAttribute("stroke", stroke);
-      path.setAttribute("fill","none");
-      path.setAttribute("marker-end","url(#arrow)");
-      vp.appendChild(path);
-    } else {
-      const line = document.createElementNS("http://www.w3.org/2000/svg","line");
-      line.setAttribute("x1", start.x); line.setAttribute("y1", start.y);
-      line.setAttribute("x2", end.x);   line.setAttribute("y2", end.y);
-      line.setAttribute("class","edge" + (isCycleEdge?" cycle":""));
-      line.setAttribute("stroke", stroke);
-      line.setAttribute("marker-end","url(#arrow)");
-      vp.appendChild(line);
-    }
-  }
-
-  // ---------- Main draw ----------
-  function drawGraph(p, n){
-    clearSVG();
-    const nodeR = state.nodeR|0;
-
-    if(!(Number.isInteger(p) && p>=3 && p<=2000)){
-      errEl.style.display="block";
-      errEl.textContent = "Enter an integer p ≥ 3 (≤ 2000 for performance).";
-      statusEl.textContent = `p=—  n=${n}  nodes=—  cycles=—`;
-      return;
-    }
-    errEl.style.display="none";
-
-    const f = buildMapping(p,n);
-    const comps = decompose(f,p);
-    const { classOf, inCycle } = classifyNodes(f,p,comps);
-
-    // local layouts
-    const layouts = comps.map(comp => ({comp, ...layoutComponent(comp, f, {nodeR})}));
-    const placements = packComponents(layouts, 60);
-
-    // assemble absolute positions and draw hulls
-    let compIdx = 0;
-    const allPos = new Map();
-    for(const L of layouts){
-      const place = placements[compIdx++];
-      const g = document.createElementNS("http://www.w3.org/2000/svg","g");
-      g.setAttribute("transform", `translate(${place.cx},${place.cy})`);
-      vp.appendChild(g);
-
-      const pts=[]; for(const pt of L.pos.values()) pts.push({x:pt.x,y:pt.y});
-      const hull = convexHull(pts);
-      if(hull.length>=3){
-        const poly = document.createElementNS("http://www.w3.org/2000/svg","polygon");
-        poly.setAttribute("points", hull.map(p=>`${p.x},${p.y}`).join(" "));
-        poly.setAttribute("class","hull");
-        g.appendChild(poly);
-      }
-      for(const [v,pt] of L.pos.entries()){
-        allPos.set(v, {x:pt.x + place.cx, y:pt.y + place.cy});
-      }
-    }
-
-    // edges
-    for(let u=1; u<=p-1; u++){
-      const v = f[u];
-      const pu = allPos.get(u), pv = allPos.get(v);
-      if(!pu || !pv) continue;
-
-      if(u===v){
-        // self-loop (e.g., 1 → 1 when n=2)
-        const tone = inCycle[u] ? getComputedStyle(document.documentElement).getPropertyValue('--edge-cycle') : getComputedStyle(document.documentElement).getPropertyValue('--edge');
-        drawSelfLoop(vp, pu.x, pu.y, nodeR, tone || "#ffad3b");
-      } else {
-        const isCycleEdge = inCycle[u] && inCycle[v] && (f[u]===v);
-        drawArrow(pu, pv, nodeR, isCycleEdge);
-      }
-    }
-
-    // nodes
-    for(let i=1;i<=p-1;i++){
-      const P = allPos.get(i); if(!P) continue;
-      const g = document.createElementNS("http://www.w3.org/2000/svg","g");
-      g.setAttribute("class", `node ${classOf[i]}`);
-      g.setAttribute("transform", `translate(${P.x},${P.y})`);
-      const c = document.createElementNS("http://www.w3.org/2000/svg","circle");
-      c.setAttribute("r", nodeR);
-      c.setAttribute("stroke", "#0b0f14aa");
-      c.setAttribute("stroke-width","1.2");
-      g.appendChild(c);
-      const t = document.createElementNS("http://www.w3.org/2000/svg","text");
-      t.setAttribute("text-anchor","middle");
-      t.setAttribute("dominant-baseline","central");
-      t.setAttribute("font-size", String(Math.round(autoTextSize(i,nodeR))));
-      t.textContent = String(i);
-      g.appendChild(t);
-
-      // tooltip
-      g.addEventListener('pointerenter', ()=>{ tip.style.display='block'; tip.textContent = `i = ${i}\nnext = i^${n} mod p = ${f[i]}\nclass = ${classOf[i]}`; });
-      g.addEventListener('pointermove', (e)=>{
-        const rect = svg.getBoundingClientRect();
-        tip.style.left = (e.clientX - rect.left + 10) + 'px';
-        tip.style.top  = (e.clientY - rect.top  + 10) + 'px';
-      });
-      g.addEventListener('pointerleave', ()=>{ tip.style.display='none'; });
-
-      vp.appendChild(g);
-    }
-
-    statusEl.textContent = `p=${p}  n=${n}  nodes=${p-1}  cycles=${comps.length}`;
-  }
-
-  // ---------- Pan / Zoom / Reset ----------
-  function applyView(){ vp.setAttribute("transform", `translate(${state.tx},${state.ty}) scale(${state.scale})`); }
-  let isPanning=false, panStart=null, startTX=0, startTY=0;
-  svg.addEventListener('pointerdown', e=>{ svg.setPointerCapture(e.pointerId); isPanning=true; panStart={x:e.clientX,y:e.clientY}; startTX=state.tx; startTY=state.ty; });
-  svg.addEventListener('pointermove', e=>{
-    if(!isPanning) return;
-    const dx=e.clientX-panStart.x, dy=e.clientY-panStart.y;
-    state.tx=startTX+dx; state.ty=startTY+dy; applyView();
-  });
-  svg.addEventListener('pointerup', ()=>{ isPanning=false; });
-  svg.addEventListener('pointerleave', ()=>{ isPanning=false; });
-
-  svg.addEventListener('wheel', e=>{
-    e.preventDefault();
-    const rect = svg.getBoundingClientRect();
-    const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
-    const prev = state.scale;
-    const next = Math.min(8, Math.max(0.2, prev * Math.exp(-e.deltaY * 0.0015)));
-    const vx = (cx - state.tx)/prev, vy = (cy - state.ty)/prev;
-    state.tx = cx - vx*next; state.ty = cy - vy*next; state.scale = next;
-    scaleSlider.value = String(Math.max(0.3, Math.min(2.5, next)));
-    applyView();
-  }, {passive:false});
-
-  svg.addEventListener('dblclick', ()=>{ state.scale=1; state.tx=0; state.ty=0; scaleSlider.value="1"; applyView(); });
-
-  // ---------- Controls ----------
-  document.getElementById('generate').addEventListener('click', ()=>{
-    state.p = parseInt(pInput.value,10);
-    drawGraph(state.p, state.n);
-  });
-  document.getElementById('randPrime').addEventListener('click', ()=>{
-    const p = primesUpTo997[Math.floor(Math.random()*primesUpTo997.length)];
-    pInput.value = String(p); state.p = p; drawGraph(state.p, state.n);
-  });
-  document.getElementById('expGroup').addEventListener('click', (e)=>{
-    const btn = e.target.closest('.exp'); if(!btn) return;
-    for(const b of document.querySelectorAll('.exp')) b.classList.remove('on');
-    btn.classList.add('on'); state.n = parseInt(btn.dataset.n,10);
-    drawGraph(state.p, state.n);
-  });
-  scaleSlider.addEventListener('input', ()=>{ state.scale = parseFloat(scaleSlider.value); applyView(); });
-  rSlider  .addEventListener('input', ()=>{ state.nodeR = parseInt(rSlider.value,10); drawGraph(state.p, state.n); });
-  window.addEventListener('keydown', (e)=>{
-    if(['2','3','4','5'].includes(e.key)){
-      state.n = parseInt(e.key,10);
-      for(const b of document.querySelectorAll('.exp')) b.classList.toggle('on', parseInt(b.dataset.n,10)===state.n);
-      drawGraph(state.p, state.n);
-    }
-  });
-
-  // ---------- Export SVG ----------
-  document.getElementById('export').addEventListener('click', ()=>{
-    const clone = svg.cloneNode(true);
-    const src = new XMLSerializer().serializeToString(clone);
-    const blob = new Blob([src], {type:"image/svg+xml;charset=utf-8"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.download = `G_pn_p${state.p}_n${state.n}.svg`; a.href = url;
-    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-  });
-
-  // ---------- Init ----------
-  function init(){
-    for(const b of document.querySelectorAll('.exp')) b.classList.toggle('on', parseInt(b.dataset.n,10)===state.n);
-    state.p = parseInt(pInput.value,10);
-    state.nodeR = parseInt(rSlider.value,10);
-    drawGraph(state.p, state.n);
-    applyView();
-  }
-  init();
-
-})();
-</script>
+        
+        function buildGraph(p, n) {
+            const nodes = [];
+            const edges = [];
+            const next = new Map();
+            
+            for (let i = 1; i < p; i++) {
+                let nextVal = modPow(i, n, p);
+                if (nextVal === 0) nextVal = 1;
+                next.set(i, nextVal);
+                nodes.push({ id: i, next: nextVal });
+            }
+            
+            const cycles = findCycles(p, next);
+            const inCycle = new Set(cycles.flat());
+            const indegree = computeIndegree(p, next);
+            
+            nodes.forEach(node => {
+                if (inCycle.has(node.id)) {
+                    node.type = 'cycle';
+                } else if (indegree.get(node.id) > 0) {
+                    node.type = 'internal';
+                } else {
+                    node.type = 'terminal';
+                }
+            });
+            
+            for (let i = 1; i < p; i++) {
+                const nextNode = next.get(i);
+                if (i === 1 && nextNode === 1) continue;
+                
+                const isSelfLoop = i === nextNode;
+                const isCycleEdge = inCycle.has(i) && inCycle.has(nextNode);
+                edges.push({ from: i, to: nextNode, selfLoop: isSelfLoop, cycleEdge: isCycleEdge });
+            }
+            
+            return { nodes, edges, cycles, next, indegree, inCycle };
+        }
+        
+        function modPow(base, exp, mod) {
+            let result = 1;
+            base = base % mod;
+            while (exp > 0) {
+                if (exp % 2 === 1) result = (result * base) % mod;
+                exp = Math.floor(exp / 2);
+                base = (base * base) % mod;
+            }
+            return result;
+        }
+        
+        function findCycles(p, next) {
+            const cycles = [];
+            const visited = new Set();
+            
+            for (let start = 1; start < p; start++) {
+                if (visited.has(start)) continue;
+                
+                const path = [];
+                const pathSet = new Set();
+                let curr = start;
+                let steps = 0;
+                
+                while (!visited.has(curr) && !pathSet.has(curr) && steps < p) {
+                    path.push(curr);
+                    pathSet.add(curr);
+                    curr = next.get(curr);
+                    steps++;
+                }
+                
+                path.forEach(v => visited.add(v));
+                
+                if (pathSet.has(curr)) {
+                    const cycleStart = path.indexOf(curr);
+                    cycles.push(path.slice(cycleStart));
+                }
+            }
+            
+            return cycles;
+        }
+        
+        function computeIndegree(p, next) {
+            const indegree = new Map();
+            for (let i = 1; i < p; i++) indegree.set(i, 0);
+            for (let i = 1; i < p; i++) {
+                const n = next.get(i);
+                indegree.set(n, indegree.get(n) + 1);
+            }
+            return indegree;
+        }
+        
+        function computeLayout(graph, p) {
+            const positions = new Map();
+            const components = [];
+            
+            graph.cycles.forEach(cycle => {
+                const component = { cycle: [], trees: [] };
+                const angleStep = (2 * Math.PI) / cycle.length;
+                
+                cycle.forEach((nodeId, idx) => {
+                    const angle = idx * angleStep - Math.PI / 2;
+                    positions.set(nodeId, {
+                        x: CONFIG.cycleRadius * Math.cos(angle),
+                        y: CONFIG.cycleRadius * Math.sin(angle)
+                    });
+                    component.cycle.push(nodeId);
+                });
+                
+                const processed = new Set(cycle);
+                cycle.forEach(rootId => {
+                    const tree = buildTree(rootId, processed, graph, p);
+                    if (tree.length > 0) {
+                        component.trees.push({ root: rootId, nodes: tree });
+                        layoutTree(tree, rootId, positions, graph, p);
+                    }
+                });
+                
+                components.push(component);
+            });
+            
+            positionComponents(components, positions);
+            applyColaLayout(graph, positions, p);
+            
+            return { positions, components };
+        }
+        
+        function buildTree(rootId, processed, graph, p) {
+            const tree = [];
+            const queue = [rootId];
+            
+            while (queue.length > 0) {
+                const current = queue.shift();
+                for (let i = 1; i < p; i++) {
+                    if (processed.has(i)) continue;
+                    if (graph.next.get(i) === current) {
+                        tree.push(i);
+                        processed.add(i);
+                        queue.push(i);
+                    }
+                }
+            }
+            
+            return tree;
+        }
+        
+        function layoutTree(tree, rootId, positions, graph, p) {
+            if (tree.length === 0) return;
+            
+            const rootPos = positions.get(rootId);
+            const layers = buildLayers(tree, rootId, graph, p);
+            
+            layers.forEach((layer, dist) => {
+                const radius = CONFIG.cycleRadius + (dist + 1) * CONFIG.treeLayerSpacing;
+                const baseAngle = Math.atan2(rootPos.y, rootPos.x);
+                const spread = Math.min(Math.PI / 2.5, (layer.length + 1) * 0.4);
+                const step = layer.length > 1 ? spread / (layer.length - 1) : 0;
+                
+                layer.forEach((nodeId, idx) => {
+                    const offset = (idx - (layer.length - 1) / 2) * step;
+                    const angle = baseAngle + offset;
+                    positions.set(nodeId, {
+                        x: radius * Math.cos(angle),
+                        y: radius * Math.sin(angle)
+                    });
+                });
+            });
+        }
+        
+        function buildLayers(tree, rootId, graph, p) {
+            const layers = [];
+            const layerMap = new Map();
+            
+            tree.forEach(nodeId => {
+                let dist = 0;
+                let curr = nodeId;
+                const seen = new Set();
+                
+                while (curr !== rootId && !seen.has(curr) && dist < p) {
+                    seen.add(curr);
+                    curr = graph.next.get(curr);
+                    dist++;
+                }
+                
+                if (!layers[dist]) layers[dist] = [];
+                layers[dist].push(nodeId);
+            });
+            
+            return layers;
+        }
+        
+        function positionComponents(components, positions) {
+            const gridCols = Math.ceil(Math.sqrt(components.length));
+            
+            components.forEach((comp, idx) => {
+                const row = Math.floor(idx / gridCols);
+                const col = idx % gridCols;
+                
+                const allNodes = [...comp.cycle, ...comp.trees.flatMap(t => t.nodes)];
+                const bounds = getBounds(allNodes, positions);
+                
+                const offsetX = col * (bounds.width + CONFIG.componentPadding) - bounds.minX;
+                const offsetY = row * (bounds.height + CONFIG.componentPadding) - bounds.minY;
+                
+                allNodes.forEach(id => {
+                    const pos = positions.get(id);
+                    pos.x += offsetX;
+                    pos.y += offsetY;
+                });
+            });
+        }
+        
+        function getBounds(nodes, positions) {
+            const xs = nodes.map(id => positions.get(id).x);
+            const ys = nodes.map(id => positions.get(id).y);
+            const minX = Math.min(...xs);
+            const maxX = Math.max(...xs);
+            const minY = Math.min(...ys);
+            const maxY = Math.max(...ys);
+            return { minX, maxX, minY, maxY, width: maxX - minX, height: maxY - minY };
+        }
+        
+        function applyColaLayout(graph, positions, p) {
+            if (typeof cola === 'undefined') return;
+            
+            const colaNodes = graph.nodes.map(node => {
+                const pos = positions.get(node.id);
+                return { 
+                    id: node.id,
+                    x: pos.x, 
+                    y: pos.y,
+                    width: CONFIG.nodeRadius * 2.5,
+                    height: CONFIG.nodeRadius * 2.5
+                };
+            });
+            
+            const colaLinks = graph.edges.map(edge => ({
+                source: edge.from - 1,
+                target: edge.to - 1
+            }));
+            
+            cola.d3adaptor()
+                .nodes(colaNodes)
+                .links(colaLinks)
+                .avoidOverlaps(true)
+                .handleDisconnected(true)
+                .linkDistance(70)
+                .start(10, 10, 10);
+            
+            colaNodes.forEach(node => {
+                positions.set(node.id, { x: node.x, y: node.y });
+            });
+        }
+        
+        function render() {
+            const svg = document.getElementById('svg');
+            svg.innerHTML = '';
+            
+            const rect = svg.getBoundingClientRect();
+            const allPos = Array.from(state.layout.positions.values());
+            const bounds = {
+                minX: Math.min(...allPos.map(p => p.x)) - 80,
+                maxX: Math.max(...allPos.map(p => p.x)) + 80,
+                minY: Math.min(...allPos.map(p => p.y)) - 80,
+                maxY: Math.max(...allPos.map(p => p.y)) + 80
+            };
+            
+            const contentW = bounds.maxX - bounds.minX;
+            const contentH = bounds.maxY - bounds.minY;
+            const scale = Math.min(rect.width / contentW, rect.height / contentH) * 0.85;
+            
+            state.transform = {
+                x: (rect.width - contentW * scale) / 2 - bounds.minX * scale,
+                y: (rect.height - contentH * scale) / 2 - bounds.minY * scale,
+                scale
+            };
+            document.getElementById('scaleInput').value = scale.toFixed(1);
+            
+            const defs = createDefs();
+            svg.appendChild(defs);
+            
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.id = 'mainGroup';
+            g.setAttribute('transform', 
+                `translate(${state.transform.x},${state.transform.y}) scale(${state.transform.scale})`);
+            
+            state.layout.components.forEach(comp => drawComponentHull(g, comp));
+            state.graph.edges.forEach(edge => drawEdge(g, edge));
+            state.graph.nodes.forEach(node => drawNode(g, node));
+            
+            svg.appendChild(g);
+            
+            document.getElementById('status').textContent = 
+                `p=${state.p} | n=${state.n} | nodes=${state.p-1} | cycles=${state.graph.cycles.length}`;
+        }
+        
+        function createDefs() {
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+            marker.setAttribute('id', 'arrow');
+            marker.setAttribute('markerWidth', '8');
+            marker.setAttribute('markerHeight', '8');
+            marker.setAttribute('refX', '7');
+            marker.setAttribute('refY', '3');
+            marker.setAttribute('orient', 'auto');
+            
+            const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            poly.setAttribute('points', '0 0, 8 3, 0 6');
+            poly.setAttribute('fill', CONFIG.colors.treeEdge);
+            marker.appendChild(poly);
+            defs.appendChild(marker);
+            return defs;
+        }
+        
+        function drawComponentHull(g, comp) {
+            const allNodes = [...comp.cycle, ...comp.trees.flatMap(t => t.nodes)];
+            const points = allNodes.map(id => state.layout.positions.get(id));
+            const hull = convexHull(points);
+            
+            if (hull.length > 2) {
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', 'M' + hull.map(p => `${p.x},${p.y}`).join('L') + 'Z');
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke', '#444');
+                path.setAttribute('stroke-width', '1.5');
+                path.setAttribute('stroke-dasharray', '6,4');
+                path.setAttribute('opacity', '0.25');
+                g.appendChild(path);
+            }
+        }
+        
+        function drawEdge(g, edge) {
+            const fromPos = state.layout.positions.get(edge.from);
+            const toPos = state.layout.positions.get(edge.to);
+            const color = edge.cycleEdge ? CONFIG.colors.cycleEdge : CONFIG.colors.treeEdge;
+            
+            if (edge.selfLoop) {
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                const r = CONFIG.nodeRadius * 1.4;
+                path.setAttribute('d', 
+                    `M ${fromPos.x + CONFIG.nodeRadius},${fromPos.y} 
+                     A ${r},${r} 0 1,1 ${fromPos.x},${fromPos.y - CONFIG.nodeRadius}`);
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke', color);
+                path.setAttribute('stroke-width', '2');
+                path.setAttribute('marker-end', 'url(#arrow)');
+                g.appendChild(path);
+            } else {
+                const dx = toPos.x - fromPos.x;
+                const dy = toPos.y - fromPos.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist > 0) {
+                    const ux = dx / dist;
+                    const uy = dy / dist;
+                    
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', fromPos.x + ux * CONFIG.nodeRadius);
+                    line.setAttribute('y1', fromPos.y + uy * CONFIG.nodeRadius);
+                    line.setAttribute('x2', toPos.x - ux * CONFIG.nodeRadius);
+                    line.setAttribute('y2', toPos.y - uy * CONFIG.nodeRadius);
+                    line.setAttribute('stroke', color);
+                    line.setAttribute('stroke-width', '2');
+                    line.setAttribute('marker-end', 'url(#arrow)');
+                    g.appendChild(line);
+                }
+            }
+        }
+        
+        function drawNode(g, node) {
+            const pos = state.layout.positions.get(node.id);
+            const color = CONFIG.colors[node.type];
+            
+            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            circle.setAttribute('cx', pos.x);
+            circle.setAttribute('cy', pos.y);
+            circle.setAttribute('r', CONFIG.nodeRadius);
+            circle.setAttribute('fill', color);
+            circle.setAttribute('stroke', '#222');
+            circle.setAttribute('stroke-width', '2.5');
+            circle.classList.add('node');
+            
+            circle.onmouseenter = e => {
+                const tooltip = document.getElementById('tooltip');
+                const typeLabel = node.type === 'cycle' ? 'Cycle node' : 
+                                 node.type === 'internal' ? 'Internal tree node' : 'Terminal node';
+                tooltip.innerHTML = `i = ${node.id}<br>next = ${node.id}^${state.n} mod ${state.p} = ${node.next}<br>${typeLabel}`;
+                tooltip.style.display = 'block';
+                tooltip.style.left = e.pageX + 12 + 'px';
+                tooltip.style.top = e.pageY + 12 + 'px';
+            };
+            circle.onmouseleave = () => {
+                document.getElementById('tooltip').style.display = 'none';
+            };
+            
+            g.appendChild(circle);
+            
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', pos.x);
+            text.setAttribute('y', pos.y);
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('dominant-baseline', 'central');
+            text.setAttribute('fill', '#000');
+            text.setAttribute('font-size', CONFIG.nodeRadius * 0.75);
+            text.setAttribute('font-weight', 'bold');
+            text.setAttribute('pointer-events', 'none');
+            text.textContent = node.id;
+            g.appendChild(text);
+        }
+        
+        function convexHull(points) {
+            if (points.length < 3) return points;
+            
+            points = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+            const lower = [];
+            for (const p of points) {
+                while (lower.length >= 2) {
+                    const a = lower[lower.length - 2];
+                    const b = lower[lower.length - 1];
+                    if ((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x) <= 0) {
+                        lower.pop();
+                    } else break;
+                }
+                lower.push(p);
+            }
+            
+            const upper = [];
+            for (let i = points.length - 1; i >= 0; i--) {
+                const p = points[i];
+                while (upper.length >= 2) {
+                    const a = upper[upper.length - 2];
+                    const b = upper[upper.length - 1];
+                    if ((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x) <= 0) {
+                        upper.pop();
+                    } else break;
+                }
+                upper.push(p);
+            }
+            
+            upper.pop();
+            lower.pop();
+            const hull = lower.concat(upper);
+            
+            const cx = hull.reduce((s, p) => s + p.x, 0) / hull.length;
+            const cy = hull.reduce((s, p) => s + p.y, 0) / hull.length;
+            
+            return hull.map(p => {
+                const dx = p.x - cx;
+                const dy = p.y - cy;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const factor = dist > 0 ? (dist + 40) / dist : 1;
+                return { x: cx + dx * factor, y: cy + dy * factor };
+            });
+        }
+        
+        function exportSVG() {
+            const svg = document.getElementById('svg').cloneNode(true);
+            const serializer = new XMLSerializer();
+            const svgStr = serializer.serializeToString(svg);
+            const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `digraph_p${state.p}_n${state.n}.svg`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        init();
+    </script>
 </body>
 </html>
