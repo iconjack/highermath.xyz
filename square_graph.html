@@ -1,480 +1,571 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>G_p: i ↦ i² mod p (1…p−1)</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Functional Digraph G_{p,n}: x ↦ x^n (mod p)</title>
 <style>
-  :root {
-    --bg: #0b0f14;
-    --panel: #121821;
-    --accent: #6bb3ff;
-    --accent-2: #9ef0b8;
-    --cycle: #ffd166;
-    --tree: #c7d2fe;
-    --edge: #94a3b8;
-    --text: #d8e1eb;
-    --muted: #7b8794;
-    --danger: #ff6b6b;
+  :root{
+    --bg:#0b0f14;
+    --fg:#d9e1ee;
+    --cycle:#ffd166;        /* warm for cycles */
+    --tree:#4cc9f0;         /* internal tree nodes */
+    --term:#f72585;         /* terminal nodes (indegree 0) */
+    --edge:#93a1b0;
+    --edge-cycle:#ffad3b;
+    --hull:#ffffff22;
+    --hull-fill:#ffffff08;  /* subtle tint */
+    --panel:#0f141b;
+    --accent:#5eead4;
   }
-  html, body { height: 100%; }
-  body {
-    margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
-    color: var(--text); background: radial-gradient(circle at 25% 0, #0f1623 0%, var(--bg) 60%);
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial,sans-serif}
+  header,footer{
+    background:linear-gradient(180deg,#0f141b,#0b0f14);
+    padding:10px 12px;
+    border-bottom:1px solid #11161f;
   }
-  header { padding: 18px 20px; display: grid; gap: 12px; grid-template-columns: 1fr; border-bottom: 1px solid #1f2937; }
-  .title { font-weight: 700; letter-spacing: .2px; font-size: 18px; }
-  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-  .card { background: linear-gradient(180deg, #141b27 0%, var(--panel) 100%);
-          border: 1px solid #263244; border-radius: 14px; box-shadow: 0 10px 24px rgba(0,0,0,.25);
-          padding: 10px 12px; display: inline-flex; gap: 10px; align-items: center; }
-  label { font-size: 13px; color: var(--muted); }
-  input[type="number"], input[type="text"] {
-    background: #0e141f; color: var(--text); border: 1px solid #243142; border-radius: 10px;
-    padding: 9px 12px; outline: none; min-width: 110px;
+  header{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  label{font-size:13px;opacity:.9}
+  input[type=number]{width:7.5em}
+  .btn{
+    background:#17202b;color:var(--fg);border:1px solid #1d2733;border-radius:8px;
+    padding:6px 10px;cursor:pointer
   }
-  input[type="number"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(107,179,255,.15); }
-  button {
-    background: var(--accent); color: #0b1220; font-weight: 700; border: none; padding: 10px 14px; border-radius: 10px; cursor: pointer;
-    transition: transform .06s ease, filter .2s ease; box-shadow: 0 8px 18px rgba(107,179,255,.25);
+  .btn:hover{border-color:#2a3747}
+  .btn.on{outline:2px solid var(--accent);outline-offset:1px}
+  .group{display:inline-flex;gap:6px;align-items:center;background:#0f141b;padding:6px 8px;border-radius:10px;border:1px solid #1b2531}
+  .grow{flex:1}
+  #wrap{position:relative;height:calc(100% - 120px)}
+  #svg{width:100%;height:100%;background:var(--bg);user-select:none;touch-action:none}
+  .node text{fill:#0b0f14;font-weight:600;pointer-events:none}
+  .node.cycle circle{fill:var(--cycle)}
+  .node.tree  circle{fill:var(--tree)}
+  .node.term  circle{fill:var(--term)}
+  .edge{stroke:var(--edge);stroke-width:1.25px;fill:none;opacity:.9}
+  .edge.cycle{stroke:var(--edge-cycle);opacity:.98}
+  .hull{stroke:var(--hull);stroke-dasharray:6 6;stroke-width:1.2;fill:var(--hull-fill)}
+  .status{font-variant-numeric:tabular-nums}
+  .msg{padding:14px 16px;color:#ddd}
+  .tip{opacity:.7;font-size:12px}
+  #tooltip{
+    position:absolute;pointer-events:none;background:#111827; color:#e5e7eb; border:1px solid #222c3a;
+    padding:6px 8px; border-radius:8px; font-size:12px; white-space:nowrap; transform:translate(8px,8px); display:none
   }
-  button.secondary { background: #1f2a3c; color: var(--text); border: 1px solid #2b394f; box-shadow: none; }
-  button:hover { filter: brightness(1.05); }
-  button:active { transform: translateY(1px); }
-  .pill { font-size: 12px; padding: 6px 10px; border-radius: 999px; background: #101827; border: 1px solid #223045; color: var(--muted); }
-  .legend { display:flex; gap:10px; align-items:center; }
-  .legend .swatch { width: 12px; height: 12px; border-radius: 2px; display:inline-block; margin-right:6px; }
-  #error { color: var(--danger); font-size: 13px; }
-  main { height: calc(100% - 90px); display: grid; grid-template-rows: 1fr; }
-  #stageWrap { position: relative; margin: 10px; border-radius: 14px; overflow: hidden; border: 1px solid #1e293b; background: #0a0f17; }
-  #svg { width: 100%; height: 100%; display: block; cursor: grab; }
-  .btnset .nbtn.active{ outline: 2px solid var(--accent); color: var(--accent); border-color: var(--accent); }
-  #svg.grabbing { cursor: grabbing; }
-  .node { stroke: #0d1220; stroke-width: 1.2; }
-  .node.cycle { fill: var(--cycle); }
-  .node.tree { fill: var(--tree); }
-  .nodeLabel { font-size: 11px; text-anchor: middle; dominant-baseline: middle; pointer-events: none; fill: #09111e; font-weight: 700; }
-  .arrow { stroke: var(--edge); stroke-width: 1.1; fill: none; }
-  .arrow.cycleEdge { stroke: #ffd16699; }
-  .arrow.treeEdge { stroke: #9fb3c899; }
-  .hud { position: absolute; top: 12px; right: 12px; background: rgba(6,10,16,.75); backdrop-filter: blur(6px);
-         border: 1px solid #212b3b; border-radius: 12px; padding: 8px 10px; font-size: 12px; color: var(--muted); }
-  .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 11px; background: #0d1421; border: 1px solid #223045; padding: 2px 6px; border-radius: 6px; color: #9ab1cb; }
-  .footer { font-size: 12px; color: var(--muted); }
-  .spacer { flex: 1 1 auto; }
+  .slider{width:150px}
+  .kbd{background:#11161f;border:1px solid #1f2937;border-bottom-width:2px;padding:1px 5px;border-radius:6px;font-size:12px}
 </style>
 </head>
 <body>
   <header>
-    <div class="title">G<sub>p</sub> — Directed graph on {1,…,p−1} with edge i → (iⁿ mod p)</div>
-    <div class="controls">
-      <div class="card" role="group" aria-label="Inputs">
-        <label for="p">prime p</label>
-        <input id="p" type="number" inputmode="numeric" min="3" step="1" value="97" />
-        <label for="scale">scale</label>
-        <input id="scale" type="number" min="0.2" max="3" step="0.1" value="1" />
-        <div class="pill" title="Exponent n for x→x^n mod p">n:</div>
-        <div id="nButtons" class="btnset" role="group" aria-label="Exponent n">
-          <button class="secondary nbtn active" data-n="2">2</button>
-          <button class="secondary nbtn" data-n="3">3</button>
-          <button class="secondary nbtn" data-n="4">4</button>
-          <button class="secondary nbtn" data-n="5">5</button>
-        </div>
-        <button id="generate">Generate</button>
-        <button id="random" class="secondary">Random prime ≤ 997</button>
-        <button id="exportSvg" class="secondary" title="Download current SVG">Export SVG</button>
-        <span id="error" role="status" aria-live="polite"></span>
-      </div>
-      <span class="spacer"></span>
-      <div class="legend card">
-        <span class="pill">Legend</span>
-        <span><span class="swatch" style="background: var(--cycle)"></span>cycle node/edge</span>
-        <span><span class="swatch" style="background: var(--tree)"></span>tree node</span>
-      </div>
+    <div class="group">
+      <label for="pInput">p:</label>
+      <input id="pInput" type="number" min="3" step="1" value="101"/>
+      <button class="btn" id="randPrime">Random prime ≤ 997</button>
     </div>
-      <span class="spacer"></span>
-      <div class="legend card">
-        <span class="pill">Legend</span>
-        <span><span class="swatch" style="background: var(--cycle)"></span>cycle node/edge</span>
-        <span><span class="swatch" style="background: var(--tree)"></span>tree node</span>
-      </div>
+    <div class="group" id="expGroup" role="group" aria-label="exponent">
+      <span>n:</span>
+      <button class="btn exp" data-n="2">2</button>
+      <button class="btn exp" data-n="3">3</button>
+      <button class="btn exp" data-n="4">4</button>
+      <button class="btn exp" data-n="5">5</button>
     </div>
+    <div class="group">
+      <button class="btn" id="generate">Generate</button>
+      <button class="btn" id="export">Export SVG</button>
+    </div>
+    <div class="group">
+      <label for="scaleSlider">Scale</label>
+      <input id="scaleSlider" class="slider" type="range" min="0.3" max="2.5" step="0.01" value="1"/>
+      <label for="rSlider">Node size</label>
+      <input id="rSlider" class="slider" type="range" min="6" max="26" step="1" value="12"/>
+    </div>
+    <div class="grow"></div>
+    <div class="tip">Pan: drag • Zoom: wheel • Reset: double-click • Switch n: <span class="kbd">2</span>/<span class="kbd">3</span>/<span class="kbd">4</span>/<span class="kbd">5</span></div>
   </header>
-  <main>
-    <div id="stageWrap">
-      <svg id="svg" viewBox="0 0 1200 800" aria-label="G_p visualization" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <marker id="arrowhead" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth">
-            <path d="M0,0 L10,4 L0,8 Z" fill="#94a3b8" />
-          </marker>
-          <marker id="arrowhead-cycle" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth">
-            <path d="M0,0 L10,4 L0,8 Z" fill="#ffd16699" />
-          </marker>
-        </defs>
-        <g id="content"></g>
-      </svg>
-      <div class="hud">Pan: <span class="kbd">drag</span> · Zoom: <span class="kbd">wheel</span> · Reset: <span class="kbd">double‑click</span></div>
-    </div>
-    <div class="footer" style="padding: 8px 16px;">Functional digraph components are directed cycles with in‑trees for the map x ↦ xⁿ (mod p). Change n with the buttons above.</div>
-  </main>
+
+  <div id="wrap">
+    <svg id="svg" viewBox="-600 -350 1200 700">
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M0,0 L8,4 L0,8 Z" fill="currentColor"></path>
+        </marker>
+      </defs>
+      <g id="viewport"></g>
+    </svg>
+    <div id="tooltip"></div>
+  </div>
+
+  <footer>
+    <div id="status" class="status">p=…  n=…  nodes=…  cycles=…</div>
+    <div id="err" class="msg" style="display:none"></div>
+  </footer>
 
 <script>
-(function(){
+(() => {
+  "use strict";
+
+  // ---------- Utilities ----------
+  const primesUpTo997 = (()=>{ // deterministic primes ≤ 997
+    const ps=[2]; for(let x=3;x<=997;x+=2){let ok=true;for(const p of ps){if(p*p>x)break;if(x%p===0){ok=false;break}} if(ok)ps.push(x)} return ps;
+  })();
+
   const svg = document.getElementById('svg');
-  let expN = 2;
-  const content = document.getElementById('content');
-  const pInput = document.getElementById('p');
-  const scaleInput = document.getElementById('scale');
-  const err = document.getElementById('error');
+  const vp  = document.getElementById('viewport');
+  const pInput = document.getElementById('pInput');
+  const statusEl = document.getElementById('status');
+  const errEl = document.getElementById('err');
+  const tip = document.getElementById('tooltip');
+  const scaleSlider = document.getElementById('scaleSlider');
+  const rSlider = document.getElementById('rSlider');
 
-  const primesBelow1000 = (()=>{
-    const arr=[]; outer: for(let n=3;n<1000;n+=2){ for(let d=3; d*d<=n; d+=2){ if(n%d===0) continue outer; } arr.push(n); } return arr; })();
+  let state = {
+    p: 101,
+    n: 2,
+    nodeR: 12,
+    scale: 1,
+    tx: 0, ty: 0,
+  };
 
-  document.getElementById('random').addEventListener('click', ()=>{
-    const r = primesBelow1000[Math.floor(Math.random()*primesBelow1000.length)];
-    pInput.value = r; generate();
-  });
-  document.getElementById('generate').addEventListener('click', generate);
-  // exponent buttons
-  document.querySelectorAll('.nbtn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      expN = parseInt(btn.getAttribute('data-n'), 10);
-      generate();
-    });
-  });
-  scaleInput.addEventListener('change', ()=>setScale(parseFloat(scaleInput.value)||1));
-
-  function setScale(s){
-    const vb = svg.viewBox.baseVal; // keep center
-    const cx = vb.x + vb.width/2, cy = vb.y + vb.height/2;
-    const baseW=1200, baseH=800;
-    vb.width = baseW / s; vb.height = baseH / s;
-    vb.x = cx - vb.width/2; vb.y = cy - vb.height/2;
-  }
-
-  // Basic probable-prime check (good up to a few million; fast trial division)
-  function isPrime(n){
-    if(n<=1) return false; if(n<=3) return true; if(n%2===0) return false; if(n%3===0) return n===3;
-    for(let i=5;i*i<=n;i+=6){ if(n%i===0||n%(i+2)===0) return false; } return true;
-  }
-
+  // ---------- Math core ----------
   function modPow(base, exp, mod){
-    // fast modular exponentiation
-    let result = 1 % mod;
-    let b = base % mod;
-    let e = exp|0;
-    while(e>0){ if(e&1) result = (result * b) % mod; b = (b * b) % mod; e >>= 1; }
-    return result;
+    let res = 1 % mod, b = base % mod, e = exp;
+    while(e>0){ if(e & 1) res = (res * b) % mod; b = (b * b) % mod; e >>= 1; }
+    return res;
   }
-
-  function buildGraph(p){
-    const n = p-1;
-    const next = new Array(n+1);
-    const rev = Array.from({length:n+1}, ()=>[]);
-    for(let i=1;i<=n;i++){
-      const j = modPow(i, expN, p); // x -> x^n mod p
-      next[i]=j; rev[j].push(i);
+  function buildMapping(p, n){
+    const f = new Array(p);
+    for(let x=1; x<=p-1; x++){
+      let y = modPow(x, n, p);
+      if(y===0) y = 1; // keep inside domain even if p composite
+      f[x] = y;
     }
-    return {next, rev, n};
+    return f;
   }
+  function indegrees(f, p){
+    const indeg = new Array(p).fill(0);
+    for(let x=1;x<=p-1;x++) indeg[f[x]]++;
+    return indeg;
+  }
+  function decompose(f, p){
+    const seen = new Array(p).fill(0);
+    const onstack = new Array(p).fill(0);
+    const components = [];
+    for(let s=1; s<=p-1; s++){
+      if(seen[s]) continue;
+      let x = s;
+      while(!seen[x]){ seen[x]=1; onstack[x]=1; x = f[x]; }
+      if(onstack[x]){
+        const cyc = []; let y = x;
+        do { cyc.push(y); y = f[y]; } while(y!==x && cyc.length<=p);
+        for(const v of cyc) onstack[v]=0;
 
-  function findCycles(next, n){
-    const state = new Uint8Array(n+1); // 0=unseen,1=visiting,2=done
-    const inCycle = new Uint8Array(n+1);
-    const cycles = [];
-    for(let v=1; v<=n; v++){
-      if(state[v]) continue;
-      let u=v; const stack=[];
-      while(!state[u]){ state[u]=1; stack.push(u); u=next[u]; }
-      if(state[u]===1){ // found a cycle
-        const cyc=[]; let x;
-        do{ x=stack.pop(); cyc.push(x); inCycle[x]=1; } while(x!==u);
-        cycles.push(cyc.reverse());
+        const rev = Array.from({length:p}, ()=>[]);
+        for(let u=1; u<=p-1; u++){ const v=f[u]; if(v!==u) rev[v].push(u); }
+        const trees = new Map();
+        for(const c of cyc){
+          const list = []; const st=[...rev[c]]; const vis=new Set();
+          while(st.length){
+            const u = st.pop();
+            if(vis.has(u) || cyc.includes(u)) continue;
+            vis.add(u); list.push(u);
+            for(const w of rev[u]) if(!vis.has(w)) st.push(w);
+          }
+          trees.set(c, list);
+        }
+        components.push({cycle:cyc, trees});
       }
-      // mark path as done
-      for(const x of stack) state[x]=2;
-      for(const x of cycles.flat()) state[x]=2; // ensure cycle nodes marked
+      x = s; while(onstack[x]){ onstack[x]=0; x=f[x]; }
     }
-    return {cycles, inCycle};
+    return components;
+  }
+  function classifyNodes(f, p, components){
+    const indeg = indegrees(f,p);
+    const classOf = new Array(p).fill("term");
+    const inCycle = new Array(p).fill(false);
+    for(const comp of components) for(const v of comp.cycle) inCycle[v]=true;
+    for(let i=1;i<=p-1;i++){
+      classOf[i] = inCycle[i] ? "cycle" : (indeg[i]>0 ? "tree" : "term");
+    }
+    return { indeg, classOf, inCycle };
   }
 
-  function layout(p){
-    const {next, rev, n} = buildGraph(p);
-    const {cycles, inCycle} = findCycles(next, n);
-
-    // Compute per-cycle tree depths (max distance to a leaf) for radius sizing
-    function maxDepthFrom(root){
-      const stack=[[root,0]]; let md=0;
-      while(stack.length){ const [u,d]=stack.pop(); md=Math.max(md,d);
-        for(const w of rev[u]) if(!inCycle[w]) stack.push([w,d+1]); }
-      return md;
-    }
-
-    const cycleMeta = cycles.map(cyc=>({
-      nodes:cyc,
-      depth: Math.max(0, ...cyc.map(maxDepthFrom)),
-    }));
-
-    // Arrange cycle groups on a grid
-    const cols = Math.ceil(Math.sqrt(cycleMeta.length));
-    const cellW = 350, cellH = 300;
-    const marginX = 80, marginY = 70;
-
-    const positions = new Map(); // id -> {x,y,cycleIdx}
-
-    cycleMeta.forEach((cm, idx)=>{
-      const row = Math.floor(idx/cols), col = idx%cols;
-      const cx = marginX + col*cellW + cellW/2;
-      const cy = marginY + row*cellH + cellH/2;
-      const R = 60 + cm.depth*24 + Math.min(50, Math.max(0, cm.nodes.length-6)*4);
-      // Place cycle nodes evenly
-      cm.nodes.forEach((v, k)=>{
-        const theta = (2*Math.PI*k)/cm.nodes.length;
-        const x = cx + R*Math.cos(theta);
-        const y = cy + R*Math.sin(theta);
-        positions.set(v, {x,y, cycleIdx: idx, theta, cx, cy, R});
-      });
-    });
-
-    // Lay out trees as radial fans from each cycle node
-    const wedge = 0.9; // radians total angular span per fan
-    function placeTree(root){
-      const base = positions.get(root);
-      // Collect the non-cycle children recursively and assign angles
-      const kids = rev[root].filter(w=>!inCycle[w]);
-      if(kids.length===0) return;
-      distribute(kids, base.theta - wedge/2, base.theta + wedge/2, 1);
-      function distribute(nodes, a0, a1, depth){
-        const step = (a1-a0) / Math.max(1, nodes.length);
-        nodes.forEach((u,i)=>{
-          const a = (a0 + (i+0.5)*step);
-          const r = base.R + depth*30;
-          const x = base.cx + r*Math.cos(a);
-          const y = base.cy + r*Math.sin(a);
-          positions.set(u, {x,y, cycleIdx: base.cycleIdx, theta:a, cx:base.cx, cy:base.cy, R:r});
-          const sub = rev[u].filter(w=>!inCycle[w]);
-          if(sub.length) distribute(sub, a-0.5*step, a+0.5*step, depth+1);
-        });
-      }
-    }
-    cycles.flat().forEach(placeTree);
-
-    // --- Component packing to avoid abutting groups ---
-    // Compute group radii from placed node positions and push components apart if overlapping.
-    const groups = cycleMeta.map((cm, idx)=>({ idx, cx: null, cy: null, r: 0 }));
-
-    // derive centers (we used a single (cx,cy) per group during placement)
-    for (const [id, pos] of positions.entries()) {
-      const g = groups[pos.cycleIdx];
-      if (g.cx === null) { g.cx = pos.cx; g.cy = pos.cy; }
-    }
-
-    // compute radius as max distance of any node in the group from its center, plus padding
-    const PAD = 26;
-    for (const [id, pos] of positions.entries()) {
-      const g = groups[pos.cycleIdx];
-      const dx = pos.x - g.cx, dy = pos.y - g.cy;
-      const d = Math.hypot(dx, dy);
-      if (d > g.r) g.r = d;
-    }
-    for (const g of groups) g.r += PAD;
-
-    // Save original group centers for delta computation after packing
-    const origCenter = groups.map((g, idx) => {
-      // find any node in this group to read its stored cx,cy
-      let found = null;
-      for (const [,pos] of positions) { if (pos.cycleIdx === idx) { found = pos; break; } }
-      return { cx: found ? found.cx : g.cx, cy: found ? found.cy : g.cy };
-    });
-
-    // simple iterative repulsion to resolve overlaps
-    const GAP = 34; // desired gap between component disks
-    for (let iter = 0; iter < 60; iter++) {
-      let moved = false;
-      for (let i = 0; i < groups.length; i++) {
-        for (let j = i+1; j < groups.length; j++) {
-          const a = groups[i], b = groups[j];
-          const dx = b.cx - a.cx, dy = b.cy - a.cy;
-          let dist = Math.hypot(dx, dy) || 0.001;
-          const need = a.r + b.r + GAP;
-          if (dist < need) {
-            const push = (need - dist) * 0.5; // split displacement
-            const ux = dx / dist, uy = dy / dist;
-            a.cx -= ux * push; a.cy -= uy * push;
-            b.cx += ux * push; b.cy += uy * push;
-            moved = true;
+  // ---------- Anti-overlap relaxer ----------
+  function relaxPositions(pos, nodeR, iterations=3) {
+    const keys = [...pos.keys()];
+    const minD = nodeR * 2.6; // bigger gap
+    for (let it = 0; it < iterations; it++) {
+      for (let i = 0; i < keys.length; i++) {
+        const ai = keys[i], a = pos.get(ai);
+        for (let j = i + 1; j < keys.length; j++) {
+          const bj = keys[j], b = pos.get(bj);
+          const dx = b.x - a.x, dy = b.y - a.y;
+          const d = Math.hypot(dx, dy);
+          if (d > 0 && d < minD) {
+            const push = (minD - d) * 0.5;
+            const ux = dx / d, uy = dy / d;
+            a.x -= ux * push; a.y -= uy * push;
+            b.x += ux * push; b.y += uy * push;
           }
         }
       }
-      if (!moved) break;
     }
-
-    // Compute per-group delta, then apply to all nodes in each group
-    const groupDelta = groups.map((g, idx) => ({ dx: g.cx - origCenter[idx].cx, dy: g.cy - origCenter[idx].cy }));
-
-    for (const [id, pos] of positions.entries()) {
-      const d = groupDelta[pos.cycleIdx];
-      pos.x += d.dx; pos.y += d.dy; pos.cx += d.dx; pos.cy += d.dy; // translate stored centers too
-      positions.set(id, pos);
-    }
-
-    // Recentre packed layout into the viewBox bounds
-    let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
-    for (const [,pos] of positions) { if(pos.x<minX)minX=pos.x; if(pos.y<minY)minY=pos.y; if(pos.x>maxX)maxX=pos.x; if(pos.y>maxY)maxY=pos.y; }
-    const W=1200, H=800;
-    const cx = (minX+maxX)/2, cy = (minY+maxY)/2;
-    const dx = W/2 - cx, dy = H/2 - cy;
-    for (const [id,pos] of positions) { pos.x += dx; pos.y += dy; pos.cx += dx; pos.cy += dy; positions.set(id,pos); }
-
-    return {next, rev, inCycle, cycles, positions};
   }
 
-  function render(p){
-    content.innerHTML = '';
-    const {next, inCycle, cycles, positions} = layout(p); // depends on expN
+  // ---------- Layout (cycle ring + fanned trees) ----------
+  function layoutComponent(comp, f, opts){
+    const { nodeR } = opts;
+    const cycle = comp.cycle.slice();
+    const L = cycle.length;
 
-    // Edge group first
-    const gEdges = document.createElementNS('http://www.w3.org/2000/svg','g');
-    gEdges.setAttribute('id','edges'); content.appendChild(gEdges);
+    // Larger ring so adjacent cycle labels breathe
+    const minArc = 2.8 * nodeR;                 // arc length per cycle node
+    const ringR_by_arc  = (minArc * L) / (2 * Math.PI);
+    const ringR_by_size = Math.max(48, 3.2 * nodeR * Math.sqrt(L));
+    const baseCycleR = Math.max(ringR_by_arc, ringR_by_size);
 
-    const gNodes = document.createElementNS('http://www.w3.org/2000/svg','g');
-    gNodes.setAttribute('id','nodes'); content.appendChild(gNodes);
+    const angleStep = (2*Math.PI)/Math.max(1, L);
+    const pos = new Map();
 
-    const nodeRadius = Math.max(4, 10 - Math.max(0, Math.floor((p-1)/200)));
-
-    function addEdge(i, j){
-      const a = positions.get(i), b = positions.get(j);
-      if(!a || !b) return;
-      const dx=b.x-a.x, dy=b.y-a.y, L=Math.hypot(dx,dy);
-      const ux=dx/L, uy=dy/L; // shorten so arrowhead sits outside node
-      const shrink = nodeRadius + 2;
-      const x1=a.x + ux*shrink, y1=a.y + uy*shrink;
-      const x2=b.x - ux*(shrink+1), y2=b.y - uy*(shrink+1);
-      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-      const d = `M ${x1.toFixed(2)} ${y1.toFixed(2)} L ${x2.toFixed(2)} ${y2.toFixed(2)}`;
-      path.setAttribute('d', d);
-      const cycleEdge = inCycle[i] && inCycle[j];
-      path.setAttribute('class', `arrow ${cycleEdge? 'cycleEdge':'treeEdge'}`);
-      path.setAttribute('marker-end', `url(#${cycleEdge? 'arrowhead-cycle':'arrowhead'})`);
-      gEdges.appendChild(path);
+    // place cycle nodes
+    for(let i=0;i<L;i++){
+      const theta = i*angleStep;
+      pos.set(cycle[i], {x: baseCycleR*Math.cos(theta), y: baseCycleR*Math.sin(theta), theta});
     }
 
-    for(let i=1;i<=p-1;i++) addEdge(i, next[i]);
-
-    // Nodes
-    const tooltip = document.createElementNS('http://www.w3.org/2000/svg','title');
-    function addNode(i){
-      const pos = positions.get(i); if(!pos) return;
-      const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-      g.setAttribute('transform', `translate(${pos.x},${pos.y})`);
-      g.setAttribute('data-id', i);
-
-      const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
-      c.setAttribute('r', nodeRadius);
-      c.setAttribute('class', `node ${inCycle[i]? 'cycle':'tree'}`);
-
-      const t = document.createElementNS('http://www.w3.org/2000/svg','text');
-      t.textContent = i;
-      t.setAttribute('class','nodeLabel');
-      t.setAttribute('text-anchor','middle');
-      t.setAttribute('dominant-baseline','middle');
-      { const digits = (''+i).length; const fs = Math.max(7, Math.min(14, nodeRadius*1.6 / (0.85 + 0.35*(digits-1)))) ; t.setAttribute('font-size', fs.toFixed(1)); }
-      if(nodeRadius < 8) t.setAttribute('opacity','0'); // hide labels when tiny
-
-      const tip = document.createElementNS('http://www.w3.org/2000/svg','title');
-      tip.textContent = `i = ${i}
-next = i^${expN} mod p = ${ modPow(i, expN, p) }`;
-
-      g.appendChild(c); g.appendChild(t); g.appendChild(tip);
-      gNodes.appendChild(g);
-    }
-    for(let i=1;i<=p-1;i++) addNode(i);
-
-    // Simple highlight on hover
-    gNodes.addEventListener('mouseover', (e)=>{
-      const g = e.target.closest('g[data-id]'); if(!g) return;
-      const id = +g.getAttribute('data-id');
-      for(const path of content.querySelectorAll('#edges path')) path.style.opacity = .25;
-      for(const n of content.querySelectorAll('#nodes g')) n.style.opacity = .4;
-      g.style.opacity = 1;
-      // highlight its outgoing and incoming
-      for(const path of content.querySelectorAll('#edges path')){
-        if(path.__from===id || path.__to===id) path.style.opacity = 1;
+    // reverse adjacency limited to the component
+    const rev = new Map();
+    for(const v of cycle) rev.set(v, []);
+    for(const [root, list] of comp.trees.entries()){
+      for(const u of list){
+        const v = f[u];
+        if(!rev.has(v)) rev.set(v, []);
+        rev.get(v).push(u);
+        if(!rev.has(u)) rev.set(u, []);
       }
-    });
-    gNodes.addEventListener('mouseout', ()=>{
-      for(const path of content.querySelectorAll('#edges path')) path.style.opacity = '';
-      for(const n of content.querySelectorAll('#nodes g')) n.style.opacity = '';
-    });
-
-    // Tag edges with from/to for hover highlight (after DOM insert)
-    let k=0; for(const path of content.querySelectorAll('#edges path')){ path.__seq=++k; }
-    // Recompute from/to by nearest nodes (cheap because indices correlate)
-    // We'll instead store when creating: redo with a loop
-    content.querySelector('#edges').innerHTML='';
-    for(let i=1;i<=p-1;i++){
-      const j = next[i]; const a=positions.get(i), b=positions.get(j);
-      if(!a||!b) continue;
-      const dx=b.x-a.x, dy=b.y-a.y, L=Math.hypot(dx,dy);
-      const ux=dx/L, uy=dy/L; const shrink = nodeRadius + 2;
-      const x1=a.x + ux*shrink, y1=a.y + uy*shrink;
-      const x2=b.x - ux*(shrink+1), y2=b.y - uy*(shrink+1);
-      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-      path.setAttribute('d', `M ${x1.toFixed(2)} ${y1.toFixed(2)} L ${x2.toFixed(2)} ${y2.toFixed(2)}`);
-      const cycleEdge = (content.querySelector(`#nodes g[data-id='${i}'] circle`).classList.contains('cycle') &&
-                         content.querySelector(`#nodes g[data-id='${j}'] circle`).classList.contains('cycle'));
-      path.setAttribute('class', `arrow ${cycleEdge? 'cycleEdge':'treeEdge'}`);
-      path.setAttribute('marker-end', `url(#${cycleEdge? 'arrowhead-cycle':'arrowhead'})`);
-      path.__from = i; path.__to = j;
-      content.querySelector('#edges').appendChild(path);
     }
 
-    // Stats in title
-    const stats = `p=${p}  n=${expN}  nodes=${p-1}  cycles=${cycles.length}`;
-    svg.setAttribute('aria-description', stats);
+    // trees
+    const depthMap = new Map();
+    for(let i=0;i<L;i++){
+      const root = cycle[i];
+      const rootPos = pos.get(root);
+      const children = (rev.get(root) || []).slice().sort((a,b)=>a-b);
+
+      const q = [];
+      for(const c of children){ q.push({u:c,depth:1}); depthMap.set(c,1); }
+
+      const fanCount = Math.max(1, children.length);
+      const spread = Math.min(Math.PI/3.0, 0.14 + fanCount*0.075);
+      const baseTheta = rootPos.theta;
+      let index = 0;
+      const assignedAngle = new Map();
+      for(const c of children){
+        const frac = (fanCount===1)?0:(index/(fanCount-1)-0.5);
+        assignedAngle.set(c, baseTheta + frac*spread);
+        index++;
+      }
+
+      while(q.length){
+        const {u,depth} = q.shift();
+        const parent = f[u];
+        let theta = assignedAngle.get(u);
+        if(theta===undefined){
+          const parAngle = assignedAngle.get(parent);
+          theta = (parAngle!==undefined)? parAngle : baseTheta;
+          assignedAngle.set(u, theta);
+        }
+        const radialStep = Math.max(30, nodeR * 3.2);  // push levels farther out
+        const dist = baseCycleR + depth*radialStep;
+        const jitter = ((u*9301+49297)%233)/233 - 0.5;
+        const rtheta = theta + 0.05*jitter;
+        pos.set(u, {x: dist*Math.cos(rtheta), y: dist*Math.sin(rtheta), theta:rtheta});
+
+        const kids = (rev.get(u) || []).slice().sort((a,b)=>a-b);
+        const kspread = Math.min(0.8, 0.14 + kids.length*0.055);
+        for(let k=0;k<kids.length;k++){
+          const w = kids[k];
+          if(depthMap.has(w)) continue;
+          const frac = (kids.length===1)?0:(k/(kids.length-1)-0.5);
+          assignedAngle.set(w, rtheta + frac*kspread);
+          depthMap.set(w, depth+1);
+          q.push({u:w, depth:depth+1});
+        }
+      }
+    }
+
+    // relax to remove residual overlaps
+    relaxPositions(pos, nodeR, 3);
+
+    // bound radius
+    let rMax = 0;
+    for(const {x,y} of pos.values()){
+      const r = Math.hypot(x,y) + nodeR + 6;
+      if(r>rMax) rMax = r;
+    }
+    return { pos, radius: Math.max(rMax, baseCycleR+nodeR+8) };
   }
 
-  function generate(){
-    const p = parseInt(pInput.value,10);
-    err.textContent = '';
-    if(!Number.isFinite(p) || p<3) { err.textContent = 'Enter an integer p ≥ 3.'; return; }
-    if(!isPrime(p)) { err.textContent = 'Warning: p is not prime. The graph is still drawn on 1…p−1.'; }
-    render(p);
+  // ---------- Convex hull ----------
+  function convexHull(points){
+    if(points.length<=1) return points.slice();
+    const pts = points.slice().sort((a,b)=> a.x===b.x ? a.y-b.y : a.x-b.x);
+    const cross=(o,a,b)=>(a.x-o.x)*(b.y-o.y)-(a.y-o.y)*(b.x-o.x);
+    const lower=[]; for(const p of pts){ while(lower.length>=2 && cross(lower[lower.length-2], lower[lower.length-1], p)<=0) lower.pop(); lower.push(p); }
+    const upper=[]; for(let i=pts.length-1;i>=0;i--){ const p=pts[i]; while(upper.length>=2 && cross(upper[upper.length-2], upper[upper.length-1], p)<=0) upper.pop(); upper.push(p); }
+    upper.pop(); lower.pop();
+    return lower.concat(upper);
   }
 
-  // Pan & zoom
-  (function(){
-    const vb = svg.viewBox.baseVal; const base = {w:1200, h:800};
-    let dragging=false, start={x:0,y:0}, vbStart={x:0,y:0};
-    svg.addEventListener('mousedown', e=>{ dragging=true; svg.classList.add('grabbing'); start={x:e.clientX,y:e.clientY}; vbStart={x:vb.x,y:vb.y}; });
-    window.addEventListener('mousemove', e=>{
-      if(!dragging) return; const dx=(e.clientX-start.x)*(vb.width/svg.clientWidth); const dy=(e.clientY-start.y)*(vb.height/svg.clientHeight); vb.x = vbStart.x - dx; vb.y = vbStart.y - dy; });
-    window.addEventListener('mouseup', ()=>{ dragging=false; svg.classList.remove('grabbing'); });
-    svg.addEventListener('wheel', e=>{
-      e.preventDefault(); const scale = (e.deltaY>0)? 1.1 : 0.9; const mx=e.offsetX, my=e.offsetY;
-      // Zoom to mouse position
-      const x = vb.x + mx*(vb.width/svg.clientWidth);
-      const y = vb.y + my*(vb.height/svg.clientHeight);
-      vb.width *= scale; vb.height *= scale; vb.x = x - mx*(vb.width/svg.clientWidth); vb.y = y - my*(vb.height/svg.clientHeight);
-      scaleInput.value = (1200/vb.width).toFixed(2);
-    }, {passive:false});
-    svg.addEventListener('dblclick', ()=>{ vb.x=0; vb.y=0; vb.width=base.w; vb.height=base.h; scaleInput.value='1'; });
-  })();
+  // ---------- Component packing ----------
+  function packComponents(layouts, cellGap=50){
+    const comps = layouts.slice().sort((a,b)=> b.radius - a.radius);
+    const n = comps.length;
+    const cols = Math.ceil(Math.sqrt(n));
+    const rows = Math.ceil(n/cols);
+    const maxR = comps.reduce((m,c)=>Math.max(m,c.radius), 0);
+    const cell = 2*maxR + cellGap;
+    const placements = [];
+    for(let i=0;i<n;i++){
+      const col = i % cols, row = Math.floor(i/cols);
+      placements.push({cx:(col-(cols-1)/2)*cell, cy:(row-(rows-1)/2)*cell});
+    }
+    return placements;
+  }
 
-  // Export SVG
-  document.getElementById('exportSvg').addEventListener('click', ()=>{
-    const ser = new XMLSerializer();
-    const xml = ser.serializeToString(svg);
-    const blob = new Blob([xml], {type:'image/svg+xml;charset=utf-8'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    const p = parseInt(pInput.value,10)||0; a.download = `G_p_p${p||'n'}.svg`; a.click();
-    setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+  // ---------- Drawing helpers ----------
+  function clearSVG(){ while(vp.firstChild) vp.removeChild(vp.firstChild); }
+
+  function autoTextSize(label, r){
+    const len = String(label).length;
+    const base = r*1.35;
+    if(len===1) return base;
+    if(len===2) return base*0.95;
+    if(len===3) return base*0.80;
+    return Math.max(9, base*0.70);
+  }
+
+  function drawSelfLoop(container, x, y, r, color){
+    const loopR = Math.max(7, 0.95*r);
+    const offset = r + loopR + 4;
+    const phi = Math.PI/4; // tilt away gently
+    const cx = x + offset * Math.cos(phi);
+    const cy = y - offset * Math.sin(phi);
+    const a0 = Math.PI*0.2, a1 = Math.PI*1.9;
+    const p0 = `${cx + loopR*Math.cos(a0)},${cy + loopR*Math.sin(a0)}`;
+    const p1 = `${cx + loopR*Math.cos(a1)},${cy + loopR*Math.sin(a1)}`;
+    const largeArc = (a1-a0) > Math.PI ? 1 : 0;
+    const path = document.createElementNS("http://www.w3.org/2000/svg","path");
+    path.setAttribute("d", `M ${p0} A ${loopR} ${loopR} 0 ${largeArc} 1 ${p1}`);
+    path.setAttribute("class","edge cycle");
+    path.setAttribute("stroke", color);
+    path.setAttribute("fill","none");
+    path.setAttribute("marker-end","url(#arrow)");
+    container.appendChild(path);
+  }
+
+  function drawArrow(uPos, vPos, nodeR, isCycleEdge){
+    const dx = vPos.x - uPos.x, dy = vPos.y - uPos.y;
+    const L = Math.hypot(dx,dy);
+    if(L < 1e-6) return;
+
+    const nx = dx / L, ny = dy / L;
+    const start = {x: uPos.x + nx*nodeR, y: uPos.y + ny*nodeR};
+    const end   = {x: vPos.x - nx*(nodeR+3), y: vPos.y - ny*(nodeR+3)};
+
+    // If the drawable segment is too short, render a small curved arc instead of a stubby line
+    const minStraight = Math.max(10, nodeR*0.8);
+    const segLen = Math.hypot(end.x-start.x, end.y-start.y);
+
+    const stroke = isCycleEdge? "var(--edge-cycle)" : "var(--edge)";
+
+    if(segLen < minStraight){
+      const midx = (start.x + end.x)/2, midy = (start.y + end.y)/2;
+      const px = -ny, py = nx; // perpendicular
+      const bulge = Math.max(8, nodeR*0.9);
+      const cx = midx + px * bulge;
+      const cy = midy + py * bulge;
+      const path = document.createElementNS("http://www.w3.org/2000/svg","path");
+      path.setAttribute("d", `M ${start.x},${start.y} Q ${cx},${cy} ${end.x},${end.y}`);
+      path.setAttribute("class","edge" + (isCycleEdge?" cycle":""));
+      path.setAttribute("stroke", stroke);
+      path.setAttribute("fill","none");
+      path.setAttribute("marker-end","url(#arrow)");
+      vp.appendChild(path);
+    } else {
+      const line = document.createElementNS("http://www.w3.org/2000/svg","line");
+      line.setAttribute("x1", start.x); line.setAttribute("y1", start.y);
+      line.setAttribute("x2", end.x);   line.setAttribute("y2", end.y);
+      line.setAttribute("class","edge" + (isCycleEdge?" cycle":""));
+      line.setAttribute("stroke", stroke);
+      line.setAttribute("marker-end","url(#arrow)");
+      vp.appendChild(line);
+    }
+  }
+
+  // ---------- Main draw ----------
+  function drawGraph(p, n){
+    clearSVG();
+    const nodeR = state.nodeR|0;
+
+    if(!(Number.isInteger(p) && p>=3 && p<=2000)){
+      errEl.style.display="block";
+      errEl.textContent = "Enter an integer p ≥ 3 (≤ 2000 for performance).";
+      statusEl.textContent = `p=—  n=${n}  nodes=—  cycles=—`;
+      return;
+    }
+    errEl.style.display="none";
+
+    const f = buildMapping(p,n);
+    const comps = decompose(f,p);
+    const { classOf, inCycle } = classifyNodes(f,p,comps);
+
+    // local layouts
+    const layouts = comps.map(comp => ({comp, ...layoutComponent(comp, f, {nodeR})}));
+    const placements = packComponents(layouts, 60);
+
+    // assemble absolute positions and draw hulls
+    let compIdx = 0;
+    const allPos = new Map();
+    for(const L of layouts){
+      const place = placements[compIdx++];
+      const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+      g.setAttribute("transform", `translate(${place.cx},${place.cy})`);
+      vp.appendChild(g);
+
+      const pts=[]; for(const pt of L.pos.values()) pts.push({x:pt.x,y:pt.y});
+      const hull = convexHull(pts);
+      if(hull.length>=3){
+        const poly = document.createElementNS("http://www.w3.org/2000/svg","polygon");
+        poly.setAttribute("points", hull.map(p=>`${p.x},${p.y}`).join(" "));
+        poly.setAttribute("class","hull");
+        g.appendChild(poly);
+      }
+      for(const [v,pt] of L.pos.entries()){
+        allPos.set(v, {x:pt.x + place.cx, y:pt.y + place.cy});
+      }
+    }
+
+    // edges
+    for(let u=1; u<=p-1; u++){
+      const v = f[u];
+      const pu = allPos.get(u), pv = allPos.get(v);
+      if(!pu || !pv) continue;
+
+      if(u===v){
+        // self-loop (e.g., 1 → 1 when n=2)
+        const tone = inCycle[u] ? getComputedStyle(document.documentElement).getPropertyValue('--edge-cycle') : getComputedStyle(document.documentElement).getPropertyValue('--edge');
+        drawSelfLoop(vp, pu.x, pu.y, nodeR, tone || "#ffad3b");
+      } else {
+        const isCycleEdge = inCycle[u] && inCycle[v] && (f[u]===v);
+        drawArrow(pu, pv, nodeR, isCycleEdge);
+      }
+    }
+
+    // nodes
+    for(let i=1;i<=p-1;i++){
+      const P = allPos.get(i); if(!P) continue;
+      const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+      g.setAttribute("class", `node ${classOf[i]}`);
+      g.setAttribute("transform", `translate(${P.x},${P.y})`);
+      const c = document.createElementNS("http://www.w3.org/2000/svg","circle");
+      c.setAttribute("r", nodeR);
+      c.setAttribute("stroke", "#0b0f14aa");
+      c.setAttribute("stroke-width","1.2");
+      g.appendChild(c);
+      const t = document.createElementNS("http://www.w3.org/2000/svg","text");
+      t.setAttribute("text-anchor","middle");
+      t.setAttribute("dominant-baseline","central");
+      t.setAttribute("font-size", String(Math.round(autoTextSize(i,nodeR))));
+      t.textContent = String(i);
+      g.appendChild(t);
+
+      // tooltip
+      g.addEventListener('pointerenter', ()=>{ tip.style.display='block'; tip.textContent = `i = ${i}\nnext = i^${n} mod p = ${f[i]}\nclass = ${classOf[i]}`; });
+      g.addEventListener('pointermove', (e)=>{
+        const rect = svg.getBoundingClientRect();
+        tip.style.left = (e.clientX - rect.left + 10) + 'px';
+        tip.style.top  = (e.clientY - rect.top  + 10) + 'px';
+      });
+      g.addEventListener('pointerleave', ()=>{ tip.style.display='none'; });
+
+      vp.appendChild(g);
+    }
+
+    statusEl.textContent = `p=${p}  n=${n}  nodes=${p-1}  cycles=${comps.length}`;
+  }
+
+  // ---------- Pan / Zoom / Reset ----------
+  function applyView(){ vp.setAttribute("transform", `translate(${state.tx},${state.ty}) scale(${state.scale})`); }
+  let isPanning=false, panStart=null, startTX=0, startTY=0;
+  svg.addEventListener('pointerdown', e=>{ svg.setPointerCapture(e.pointerId); isPanning=true; panStart={x:e.clientX,y:e.clientY}; startTX=state.tx; startTY=state.ty; });
+  svg.addEventListener('pointermove', e=>{
+    if(!isPanning) return;
+    const dx=e.clientX-panStart.x, dy=e.clientY-panStart.y;
+    state.tx=startTX+dx; state.ty=startTY+dy; applyView();
+  });
+  svg.addEventListener('pointerup', ()=>{ isPanning=false; });
+  svg.addEventListener('pointerleave', ()=>{ isPanning=false; });
+
+  svg.addEventListener('wheel', e=>{
+    e.preventDefault();
+    const rect = svg.getBoundingClientRect();
+    const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+    const prev = state.scale;
+    const next = Math.min(8, Math.max(0.2, prev * Math.exp(-e.deltaY * 0.0015)));
+    const vx = (cx - state.tx)/prev, vy = (cy - state.ty)/prev;
+    state.tx = cx - vx*next; state.ty = cy - vy*next; state.scale = next;
+    scaleSlider.value = String(Math.max(0.3, Math.min(2.5, next)));
+    applyView();
+  }, {passive:false});
+
+  svg.addEventListener('dblclick', ()=>{ state.scale=1; state.tx=0; state.ty=0; scaleSlider.value="1"; applyView(); });
+
+  // ---------- Controls ----------
+  document.getElementById('generate').addEventListener('click', ()=>{
+    state.p = parseInt(pInput.value,10);
+    drawGraph(state.p, state.n);
+  });
+  document.getElementById('randPrime').addEventListener('click', ()=>{
+    const p = primesUpTo997[Math.floor(Math.random()*primesUpTo997.length)];
+    pInput.value = String(p); state.p = p; drawGraph(state.p, state.n);
+  });
+  document.getElementById('expGroup').addEventListener('click', (e)=>{
+    const btn = e.target.closest('.exp'); if(!btn) return;
+    for(const b of document.querySelectorAll('.exp')) b.classList.remove('on');
+    btn.classList.add('on'); state.n = parseInt(btn.dataset.n,10);
+    drawGraph(state.p, state.n);
+  });
+  scaleSlider.addEventListener('input', ()=>{ state.scale = parseFloat(scaleSlider.value); applyView(); });
+  rSlider  .addEventListener('input', ()=>{ state.nodeR = parseInt(rSlider.value,10); drawGraph(state.p, state.n); });
+  window.addEventListener('keydown', (e)=>{
+    if(['2','3','4','5'].includes(e.key)){
+      state.n = parseInt(e.key,10);
+      for(const b of document.querySelectorAll('.exp')) b.classList.toggle('on', parseInt(b.dataset.n,10)===state.n);
+      drawGraph(state.p, state.n);
+    }
   });
 
-  // Initial render
-  generate();
+  // ---------- Export SVG ----------
+  document.getElementById('export').addEventListener('click', ()=>{
+    const clone = svg.cloneNode(true);
+    const src = new XMLSerializer().serializeToString(clone);
+    const blob = new Blob([src], {type:"image/svg+xml;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.download = `G_pn_p${state.p}_n${state.n}.svg`; a.href = url;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  });
+
+  // ---------- Init ----------
+  function init(){
+    for(const b of document.querySelectorAll('.exp')) b.classList.toggle('on', parseInt(b.dataset.n,10)===state.n);
+    state.p = parseInt(pInput.value,10);
+    state.nodeR = parseInt(rSlider.value,10);
+    drawGraph(state.p, state.n);
+    applyView();
+  }
+  init();
+
 })();
 </script>
 </body>
