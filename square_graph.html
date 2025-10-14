@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Functional Digraph Visualizer</title>
-    <script src="https://cdn.jsdelivr.net/npm/webcola/dist/cola.min.js"></script>
+    <script src="https://d3js.org/d3.v3.min.js"></script>
+    <script src="https://unpkg.com/webcola@3.4.0/WebCola/cola.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -95,6 +96,24 @@
         }
         .node { cursor: pointer; transition: opacity 0.2s; }
         .node:hover { opacity: 0.85; }
+        .legend {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            margin-left: auto;
+            font-size: 12px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 1.5px solid #222;
+        }
     </style>
 </head>
 <body>
@@ -117,6 +136,24 @@
             <input type="number" id="scaleInput" value="1" min="0.1" max="5" step="0.1">
         </div>
         <button id="exportBtn">Export SVG</button>
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #ff6b6b;"></div>
+                <span>Cycle</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #4ecdc4;"></div>
+                <span>Internal</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #a8dadc;"></div>
+                <span>Terminal</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #ffd700;"></div>
+                <span>Primitive Root</span>
+            </div>
+        </div>
     </div>
     
     <div class="canvas-container" id="canvasContainer">
@@ -146,6 +183,7 @@
                 cycle: '#ff6b6b',
                 internal: '#4ecdc4',
                 terminal: '#a8dadc',
+                primitive_root: '#ffd700',
                 cycleEdge: '#ff8585',
                 treeEdge: '#555'
             }
@@ -279,6 +317,10 @@
                     node.type = 'internal';
                 } else {
                     node.type = 'terminal';
+                    if (is_primitive_root(node.id, p)) {
+                        node.type = 'primitive_root';
+                        node.is_primitive = true;
+                    }
                 }
             });
             
@@ -303,6 +345,34 @@
                 base = (base * base) % mod;
             }
             return result;
+        }
+
+        function is_primitive_root(g, p) {
+            if (modPow(g, p - 1, p) !== 1) return false;
+
+            const phi = p - 1;
+            const factors = get_prime_factors(phi);
+
+            for (const factor of factors) {
+                if (modPow(g, phi / factor, p) === 1) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function get_prime_factors(n) {
+            const factors = new Set();
+            let d = 2;
+            while (d * d <= n) {
+                while (n % d === 0) {
+                    factors.add(d);
+                    n = n / d;
+                }
+                d++;
+            }
+            if (n > 1) factors.add(n);
+            return Array.from(factors);
         }
         
         function findCycles(p, next) {
@@ -637,8 +707,10 @@
             
             circle.onmouseenter = e => {
                 const tooltip = document.getElementById('tooltip');
-                const typeLabel = node.type === 'cycle' ? 'Cycle node' : 
-                                 node.type === 'internal' ? 'Internal tree node' : 'Terminal node';
+                const typeLabel = node.type === 'cycle' ? 'Cycle node' :
+                                 node.type === 'internal' ? 'Internal tree node' :
+                                 node.type === 'primitive_root' ? 'Terminal node (Primitive root)' :
+                                 'Terminal node';
                 tooltip.innerHTML = `i = ${node.id}<br>next = ${node.id}^${state.n} mod ${state.p} = ${node.next}<br>${typeLabel}`;
                 tooltip.style.display = 'block';
                 tooltip.style.left = e.pageX + 12 + 'px';
