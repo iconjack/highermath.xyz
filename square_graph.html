@@ -80,6 +80,9 @@
             font-size: 12px;
             color: #888;
             font-family: 'Courier New', monospace;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         .tooltip {
             position: absolute;
@@ -121,6 +124,8 @@
         <div class="control-group">
             <label for="pInput">p:</label>
             <input type="number" id="pInput" value="13" min="3">
+            <button id="prevPrimeBtn">← Prev</button>
+            <button id="nextPrimeBtn">Next →</button>
         </div>
         <div class="control-group">
             <label>n:</label>
@@ -161,7 +166,10 @@
         <div class="tooltip" id="tooltip"></div>
     </div>
     
-    <div class="status" id="status">Ready</div>
+    <div class="status">
+        <span id="status">Ready</span>
+        <span>v0.1.28</span>
+    </div>
 
     <script>
         let state = {
@@ -199,6 +207,9 @@
                 generate();
             };
             document.getElementById('exportBtn').onclick = exportSVG;
+            document.getElementById('prevPrimeBtn').onclick = go_to_prev_prime;
+            document.getElementById('nextPrimeBtn').onclick = go_to_next_prime;
+
             document.getElementById('scaleInput').oninput = () => {
                 const scale = parseFloat(document.getElementById('scaleInput').value);
                 if (scale > 0) {
@@ -206,7 +217,7 @@
                     updateTransform();
                 }
             };
-            
+
             document.querySelectorAll('.n-btn').forEach(btn => {
                 btn.onclick = () => {
                     document.querySelectorAll('.n-btn').forEach(b => b.classList.remove('active'));
@@ -215,11 +226,24 @@
                     generate();
                 };
             });
-            
+
             document.getElementById('pInput').onkeypress = e => {
                 if (e.key === 'Enter') generate();
             };
-            
+
+            // Add keyboard shortcuts for arrow keys
+            document.addEventListener('keydown', e => {
+                if (e.target.tagName === 'INPUT') return; // Don't interfere with input fields
+
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    go_to_prev_prime();
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    go_to_next_prime();
+                }
+            });
+
             setupInteractions();
             generate();
         }
@@ -280,15 +304,51 @@
             }
         }
         
+        function go_to_prev_prime() {
+            const current_p = parseInt(document.getElementById('pInput').value);
+            let prev_prime = null;
+
+            // Find the largest prime less than current_p
+            for (let i = PRIMES.length - 1; i >= 0; i--) {
+                if (PRIMES[i] < current_p) {
+                    prev_prime = PRIMES[i];
+                    break;
+                }
+            }
+
+            if (prev_prime !== null) {
+                document.getElementById('pInput').value = prev_prime;
+                generate();
+            }
+        }
+
+        function go_to_next_prime() {
+            const current_p = parseInt(document.getElementById('pInput').value);
+            let next_prime = null;
+
+            // Find the smallest prime greater than current_p
+            for (let i = 0; i < PRIMES.length; i++) {
+                if (PRIMES[i] > current_p) {
+                    next_prime = PRIMES[i];
+                    break;
+                }
+            }
+
+            if (next_prime !== null) {
+                document.getElementById('pInput').value = next_prime;
+                generate();
+            }
+        }
+
         function generate() {
             state.p = parseInt(document.getElementById('pInput').value);
-            
+
             if (!state.p || state.p < 3) {
                 document.getElementById('status').textContent = 'Error: p must be ≥ 3';
                 document.getElementById('svg').innerHTML = '';
                 return;
             }
-            
+
             state.graph = buildGraph(state.p, state.n);
             state.layout = computeLayout(state.graph, state.p);
             render();
