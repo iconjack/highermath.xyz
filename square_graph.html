@@ -184,8 +184,8 @@
                 internal: '#4ecdc4',
                 terminal: '#a8dadc',
                 primitive_root: '#ffd700',
-                cycleEdge: '#ff8585',
-                treeEdge: '#555'
+                cycleEdge: '#ffffff',
+                treeEdge: '#ffffff'
             }
         };
         
@@ -347,18 +347,46 @@
             return result;
         }
 
-        function is_primitive_root(g, p) {
-            if (modPow(g, p - 1, p) !== 1) return false;
+        function is_primitive_root(g, n) {
+            const phi = euler_phi(n);
+            if (gcd(g, n) !== 1) return false;
+            if (modPow(g, phi, n) !== 1) return false;
 
-            const phi = p - 1;
             const factors = get_prime_factors(phi);
 
             for (const factor of factors) {
-                if (modPow(g, phi / factor, p) === 1) {
+                if (modPow(g, phi / factor, n) === 1) {
                     return false;
                 }
             }
             return true;
+        }
+
+        function gcd(a, b) {
+            while (b !== 0) {
+                const temp = b;
+                b = a % b;
+                a = temp;
+            }
+            return a;
+        }
+
+        function euler_phi(n) {
+            let result = n;
+            let p = 2;
+            while (p * p <= n) {
+                if (n % p === 0) {
+                    while (n % p === 0) {
+                        n = n / p;
+                    }
+                    result -= result / p;
+                }
+                p++;
+            }
+            if (n > 1) {
+                result -= result / n;
+            }
+            return Math.floor(result);
         }
 
         function get_prime_factors(n) {
@@ -547,31 +575,32 @@
         
         function applyColaLayout(graph, positions, p) {
             if (typeof cola === 'undefined') return;
-            
+
             const colaNodes = graph.nodes.map(node => {
                 const pos = positions.get(node.id);
-                return { 
+                return {
                     id: node.id,
-                    x: pos.x, 
+                    x: pos.x,
                     y: pos.y,
-                    width: CONFIG.nodeRadius * 2.5,
-                    height: CONFIG.nodeRadius * 2.5
+                    width: CONFIG.nodeRadius * 4,
+                    height: CONFIG.nodeRadius * 4
                 };
             });
-            
+
             const colaLinks = graph.edges.map(edge => ({
                 source: edge.from - 1,
                 target: edge.to - 1
             }));
-            
+
             cola.d3adaptor()
                 .nodes(colaNodes)
                 .links(colaLinks)
                 .avoidOverlaps(true)
                 .handleDisconnected(true)
-                .linkDistance(70)
-                .start(10, 10, 10);
-            
+                .linkDistance(100)
+                .symmetricDiffLinkLengths(20)
+                .start(15, 20, 25);
+
             colaNodes.forEach(node => {
                 positions.set(node.id, { x: node.x, y: node.y });
             });
