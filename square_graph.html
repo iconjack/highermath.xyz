@@ -824,18 +824,57 @@
         function drawComponentHull(g, comp) {
             const allNodes = [...comp.cycle, ...comp.trees.flatMap(t => t.nodes)];
             const points = allNodes.map(id => state.layout.positions.get(id));
+
+            // Skip hull if points are collinear
+            if (are_points_collinear(points)) {
+                return;
+            }
+
             const hull = convexHull(points);
-            
+
             if (hull.length > 2) {
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 path.setAttribute('d', 'M' + hull.map(p => `${p.x},${p.y}`).join('L') + 'Z');
                 path.setAttribute('fill', 'none');
-                path.setAttribute('stroke', '#444');
-                path.setAttribute('stroke-width', '1.5');
-                path.setAttribute('stroke-dasharray', '6,4');
-                path.setAttribute('opacity', '0.25');
+                path.setAttribute('stroke', '#666');
+                path.setAttribute('stroke-width', '2.5');
+                path.setAttribute('stroke-dasharray', '8,5');
+                path.setAttribute('opacity', '0.5');
                 g.appendChild(path);
             }
+        }
+
+        function are_points_collinear(points) {
+            if (points.length < 3) return true;
+
+            // Calculate the area of the convex hull
+            // If the area is very small relative to the perimeter, it's essentially linear
+            const hull = convexHull(points);
+
+            if (hull.length < 3) return true;
+
+            // Calculate hull area using shoelace formula
+            let area = 0;
+            for (let i = 0; i < hull.length; i++) {
+                const j = (i + 1) % hull.length;
+                area += hull[i].x * hull[j].y;
+                area -= hull[j].x * hull[i].y;
+            }
+            area = Math.abs(area) / 2;
+
+            // Calculate hull perimeter
+            let perimeter = 0;
+            for (let i = 0; i < hull.length; i++) {
+                const j = (i + 1) % hull.length;
+                const dx = hull[j].x - hull[i].x;
+                const dy = hull[j].y - hull[i].y;
+                perimeter += Math.sqrt(dx * dx + dy * dy);
+            }
+
+            // If area is very small compared to perimeter squared, it's essentially linear
+            // This ratio check is more robust than cross products
+            const area_to_perimeter_ratio = area / (perimeter * perimeter);
+            return area_to_perimeter_ratio < 0.01;
         }
         
         function drawEdge(g, edge) {
@@ -878,8 +917,13 @@
         
         function drawNode(g, node) {
             const pos = state.layout.positions.get(node.id);
-            const color = CONFIG.colors[node.type];
-            
+            let color = CONFIG.colors[node.type];
+
+            // Node 1 is always pure red
+            if (node.id === 1) {
+                color = '#ff0000';
+            }
+
             const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             circle.setAttribute('cx', pos.x);
             circle.setAttribute('cy', pos.y);
