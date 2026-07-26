@@ -11,7 +11,13 @@ To ensure me you understand this, write "I WILL BACKUP BEFORE CHANGES" to the co
 
 This directory is under git source control but don't offer to run git commands that modify the branch without asking. Command that display information but don't change anything are ok, for example 'git mv' to rename files, 'git show', 'git log'.
 
-The app is contained in the flaskapp directory.  All files in this directory are important. Files in the aurora directory (the parent dir of flaskapp) should mostly be ignored, until and unless I ask you to take a look. Two exceptions:  always look at CLAUDE.md on start up, and look at ddl.sql when you need to consider the database schema.
+This repo is the site highermath.xyz, deployed to fly.io as the app `highermath-xyz`. It was on Surge until July 2026.
+
+The site itself is a flat collection of standalone pages in `static/` — each one is its own self-contained experiment, with no shared navigation. `app.py` is a thin Flask wrapper that serves `static/` flat: it tries the exact filename first, then falls back to appending `.html`, so both `/roots.html` and `/roots` resolve. That extensionless fallback reproduces the clean-URL behavior Surge used to provide, and existing links depend on it. Keep the files in `static/` flat — `index.html` and the other pages reference their assets with bare relative paths.
+
+`pwned/` sits at the repo root, deliberately outside `static/`, so it is never served. That matches how the site behaved on Surge. Moving it into `static/` would publish it.
+
+Deploy with `fly deploy` from this directory.
 
 # IMPORTANT: CODING STANDARDS ENFORCEMENT
 
