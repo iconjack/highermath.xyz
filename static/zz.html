@@ -68,6 +68,49 @@
             return Exp(Mul(w, Log(z)));
         }
 
+        function divide(z, divisor) {
+            let denominator = divisor.x * divisor.x + divisor.y * divisor.y;
+            return {
+                x: (z.x * divisor.x + z.y * divisor.y) / denominator,
+                y: (z.y * divisor.x - z.x * divisor.y) / denominator
+            };
+        }
+
+        function gamma(z) {
+            if (z.y === 0 && z.x <= 0 && Number.isInteger(z.x)) {
+                return { x: NaN, y: NaN };
+            }
+
+            if (z.x < 0.5) {
+                return divide(gamma(Add(z, { x: 1, y: 0 })), z);
+            }
+
+            // lanczos approximation with g = 7
+            const coefficients = [
+                676.5203681218851,
+                -1259.1392167224028,
+                771.32342877765313,
+                -176.61502916214059,
+                12.507343278686905,
+                -0.13857109526572012,
+                9.9843695780195716e-6,
+                1.5056327351493116e-7
+            ];
+            let shifted_z = Sub(z, { x: 1, y: 0 });
+            let series = { x: 0.99999999999980993, y: 0 };
+            for (let index = 0; index < coefficients.length; index++) {
+                series = Add(series, divide(
+                    { x: coefficients[index], y: 0 },
+                    Add(shifted_z, { x: index + 1, y: 0 })
+                ));
+            }
+            let base = Add(shifted_z, { x: 7.5, y: 0 });
+            return Mul(
+                { x: Math.sqrt(2 * Math.PI), y: 0 },
+                Mul(Pow(base, Add(shifted_z, { x: 0.5, y: 0 })), Mul(Exp(Neg(base)), series))
+            );
+        }
+
         onload = function () {
             console.log('hi');
             let canvas = $('canvas');
@@ -221,6 +264,19 @@
                 ctx.fillText('z', zz.x * .35 * w + .02 * w, -zz.y * .35 * h - 0.02 * h);
                 ctx.font = 'italic 28px serif';
                 ctx.fillText('z', zz.x * .35 * w + .04 * w, -zz.y * .35 * h - 0.04 * h);
+
+                // draw gamma(z + 1), labeled z!
+                let factorial = gamma(Add(z, { x: 1, y: 0 }));
+                if (Number.isFinite(factorial.x) && Number.isFinite(factorial.y)) {
+                    ctx.beginPath();
+                    ctx.fillStyle = 'purple';
+                    ctx.ellipse(factorial.x * .35 * w, -factorial.y * .35 * h, .012 * w, .012 * h, Math.PI / 4, 0, 2 * Math.PI);
+                    ctx.fill();
+
+                    ctx.font = 'italic 40px serif';
+                    ctx.fillStyle = 'black';
+                    ctx.fillText('z!', factorial.x * .35 * w + .02 * w, -factorial.y * .35 * h - 0.02 * h);
+                }
 
                 ctx.restore();
                 changed = false;
